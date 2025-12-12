@@ -75,6 +75,18 @@ export function extractInstagramData(html: string): { url: string | null, author
   return { url, author };
 }
 
+export function normalizeInstagram(author: string | null): string | null {
+  if (!author) return null;
+  // Remove common prefix like "A post shared by"
+  let handle = author.replace(/A post shared by/ig, '').trim();
+  // Take the first token (often the username)
+  handle = handle.split(/\s+/)[0];
+  // Strip leading @ and unsafe chars
+  handle = handle.replace(/^@/, '').replace(/[^a-zA-Z0-9._]/g, '');
+  if (!handle) return null;
+  return `https://www.instagram.com/${handle}/`;
+}
+
 export async function getCoordinates(address: string, apiKey: string): Promise<{ lat: number, lng: number } | null> {
     if (!apiKey) {
         console.warn("Google Maps API Key is missing.");

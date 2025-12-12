@@ -1,6 +1,7 @@
 import { serve } from "bun";
-import { getAllLocations, saveLocation } from "./db";
-import { generateGoogleMapsUrl, extractInstagramData, getCoordinates } from "./utils";
+import { getAllLocations, saveLocation, getLocationById, getLocationsByParentId, updateLocationById } from "./db";
+import { generateGoogleMapsUrl, extractInstagramData, normalizeInstagram, getCoordinates } from "./utils";
+import { createFromMaps, createFromInstagram, createFromUpload } from './location';
 import { join } from 'node:path';
 import { mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
@@ -17,21 +18,31 @@ export function startServer(port = 3000) {
       // API Endpoints
       if (url.pathname === "/api/locations" && req.method === "GET") {
         try {
-            const locations = getAllLocations();
-            // Get current working directory
+            const allLocations = getAllLocations();
             const cwd = process.cwd();
-            
-            // Add absolute path to image data
-            const locationsWithPaths = locations.map(loc => ({
-                ...loc,
-                images: loc.images ? loc.images.map(img => {
-                    // Ensure img is relative path like "images/foo.jpg"
-                    return img;
-                }) : []
-            }));
 
-            return new Response(JSON.stringify({ locations: locationsWithPaths, cwd }), {
-            headers: { "Content-Type": "application/json" },
+            // Filter out Instagram embeds (they'll be nested under their parent)
+            const mainLocations = allLocations.filter(loc => loc.type === 'maps' || !loc.parent_id);
+
+            // For each main location, attach its Instagram embeds and uploads
+            const locationsWithEmbeds = mainLocations.map(loc => {
+                const instagramEmbeds = allLocations.filter(embed =>
+                    embed.parent_id === loc.id && embed.type === 'instagram'
+                );
+
+                const uploadEntries = allLocations.filter(entry =>
+                    entry.parent_id === loc.id && entry.type === 'upload'
+                );
+
+                return {
+                    ...loc,
+                    instagram_embeds: instagramEmbeds,
+                    uploads: uploadEntries
+                };
+            });
+
+            return new Response(JSON.stringify({ locations: locationsWithEmbeds, cwd }), {
+                headers: { "Content-Type": "application/json" },
             });
         } catch (error) {
             console.error("Error fetching locations:", error);
@@ -45,28 +56,22 @@ export function startServer(port = 3000) {
       if (url.pathname === "/api/add-maps" && req.method === "POST") {
         try {
             const body = await req.json();
-            const { name, address } = body;
+            const { name, address, category } = body;
 
             if (!name || !address) {
                  return new Response(JSON.stringify({ error: "Name and Address required" }), { status: 400 });
             }
-            
-            const mapUrl = generateGoogleMapsUrl(name, address);
-            let entry = { name, address, url: mapUrl, lat: null, lng: null };
 
-            // Fetch coordinates if API key is available
-            if (GOOGLE_MAPS_API_KEY) {
-                const coords = await getCoordinates(address, GOOGLE_MAPS_API_KEY);
-                if (coords) {
-                    entry.lat = coords.lat;
-                    entry.lng = coords.lng;
-                }
-            } else {
-                console.log("Skipping Geocoding: GOOGLE_MAPS_API_KEY not set.");
-            }
+            // Validate category
+            const validCategories = ['dining', 'accommodations', 'attractions', 'nightlife'];
+            const selectedCategory = category && validCategories.includes(category)
+              ? category
+              : 'attractions';
 
+            // Use factory to create a unified Location entry (handles optional geocoding)
+            const entry = await createFromMaps(name, address, GOOGLE_MAPS_API_KEY, selectedCategory);
             saveLocation(entry);
-            
+
             return new Response(JSON.stringify({ success: true, entry }), {
                  headers: { "Content-Type": "application/json" }
             });
@@ -77,13 +82,87 @@ export function startServer(port = 3000) {
         }
       }
 
+      if (url.pathname === "/api/update-maps" && req.method === "POST") {
+        try {
+            const body = await req.json();
+            const { id, name, address, category } = body;
+
+            if (!id || !name || !address) {
+                return new Response(JSON.stringify({ error: "ID, Name and Address required" }), { status: 400 });
+            }
+
+            // Validate category
+            const validCategories = ['dining', 'accommodations', 'attractions', 'nightlife'];
+            const selectedCategory = category && validCategories.includes(category)
+              ? category
+              : 'attractions';
+
+            // Get current location to verify it exists and is type='maps'
+            const currentLocation = getLocationById(id);
+            if (!currentLocation || currentLocation.type !== 'maps') {
+                return new Response(JSON.stringify({ error: "Location not found or cannot be edited" }), { status: 404 });
+            }
+
+            // Generate new URL from updated name and address
+            const newUrl = generateGoogleMapsUrl(name, address);
+
+            // Optionally geocode new address if API key is available
+            let lat = currentLocation.lat;
+            let lng = currentLocation.lng;
+            if (GOOGLE_MAPS_API_KEY && address !== currentLocation.address) {
+              try {
+                const coords = await getCoordinates(address, GOOGLE_MAPS_API_KEY);
+                if (coords) {
+                  lat = coords.lat;
+                  lng = coords.lng;
+                }
+              } catch (e) {
+                console.warn('Failed to geocode updated address:', e);
+              }
+            }
+
+            // Update the location
+            const success = updateLocationById(id, {
+              name,
+              address,
+              category: selectedCategory,
+              url: newUrl,
+              lat,
+              lng
+            });
+
+            if (success) {
+              const updatedLocation = getLocationById(id);
+              return new Response(JSON.stringify({ success: true, entry: updatedLocation }), {
+                headers: { "Content-Type": "application/json" }
+              });
+            } else {
+              return new Response(JSON.stringify({ error: "Failed to update location" }), { status: 500 });
+            }
+
+        } catch (error) {
+            console.error(error);
+            return new Response(JSON.stringify({ error: "Server Error" }), { status: 500 });
+        }
+      }
+
       if (url.pathname === "/api/add-instagram" && req.method === "POST") {
         try {
            const body = await req.json();
-           const { embedCode } = body;
-           
+           const { embedCode, locationId } = body;
+
            if (!embedCode) {
                return new Response(JSON.stringify({ error: "Embed code required" }), { status: 400 });
+           }
+
+           if (!locationId) {
+               return new Response(JSON.stringify({ error: "Location ID required" }), { status: 400 });
+           }
+
+           // Verify parent location exists
+           const parentLocation = getLocationById(locationId);
+           if (!parentLocation) {
+               return new Response(JSON.stringify({ error: "Parent location not found" }), { status: 404 });
            }
 
            const { url: instaUrl, author } = extractInstagramData(embedCode);
@@ -91,15 +170,8 @@ export function startServer(port = 3000) {
                 return new Response(JSON.stringify({ error: "Invalid embed code" }), { status: 400 });
            }
 
-           const name = author || "Unknown_" + Date.now();
-           const entry = { 
-                name: name, 
-                address: "Instagram Embed", 
-                url: instaUrl,
-                embed_code: embedCode,
-                images: [],
-                original_image_urls: []
-           };
+         // Create base Location entry for Instagram with parent reference
+         const entry = createFromInstagram(embedCode, locationId);
            
            // 1. Save initial entry
            saveLocation(entry);
@@ -149,8 +221,24 @@ export function startServer(port = 3000) {
 
                 // 3. Download Images
                 if (imageUrls.length > 0) {
-                    const imagesDir = join(process.cwd(), 'images');
-                    if (!existsSync(imagesDir)) await mkdir(imagesDir);
+                    // Create nested folder structure for this location
+                    // Use parent location name for folder
+                    const cleanName = parentLocation.name.replace(/[^a-z0-9]/gi, '_').toLowerCase().substring(0, 30);
+                    const timestamp = Date.now();
+
+                    // Build nested path: images/{cleanName}/instagram/{timestamp}/
+                    const baseImagesDir = join(process.cwd(), 'images');
+                    const locationDir = join(baseImagesDir, cleanName);
+                    const typeDir = join(locationDir, 'instagram');
+                    const timestampDir = join(typeDir, timestamp.toString());
+
+                    // Create nested directories
+                    if (!existsSync(baseImagesDir)) await mkdir(baseImagesDir);
+                    if (!existsSync(locationDir)) await mkdir(locationDir);
+                    if (!existsSync(typeDir)) await mkdir(typeDir);
+                    if (!existsSync(timestampDir)) await mkdir(timestampDir);
+
+                    const locationDirPath = timestampDir;
 
                     const savedPaths = [];
                     for (let i = 0; i < imageUrls.length; i++) {
@@ -159,12 +247,12 @@ export function startServer(port = 3000) {
                             const imgRes = await fetch(imgUrl);
                             if (!imgRes.ok) continue;
                             
-                            const cleanName = name.replace(/[^a-z0-9]/gi, '_').toLowerCase().substring(0, 30);
-                            const filename = `${cleanName}_${Date.now()}_${i}.jpg`;
-                            const filePath = join(imagesDir, filename);
+                            const filename = `image_${i}.jpg`;
+                            const filePath = join(locationDirPath, filename);
                             
                             await Bun.write(filePath, await imgRes.blob());
-                            savedPaths.push(`images/${filename}`);
+                            // Store relative path with nested structure
+                            savedPaths.push(`images/${cleanName}/instagram/${timestamp}/${filename}`);
                         } catch (e) { console.error(e); }
                     }
                     
@@ -188,6 +276,149 @@ export function startServer(port = 3000) {
         } catch (error) {
             console.error(error);
             return new Response(JSON.stringify({ error: "Server Error" }), { status: 500 });
+        }
+      }
+
+      if (url.pathname === "/api/add-upload" && req.method === "POST") {
+        try {
+          const formData = await req.formData();
+          const locationId = formData.get('locationId');
+          const files = formData.getAll('files');
+
+          // Validate locationId
+          if (!locationId) {
+            return new Response(JSON.stringify({ error: "Location ID required" }), { status: 400 });
+          }
+
+          const parentId = parseInt(locationId as string);
+          if (isNaN(parentId)) {
+            return new Response(JSON.stringify({ error: "Invalid location ID" }), { status: 400 });
+          }
+
+          // Verify parent location exists
+          const parentLocation = getLocationById(parentId);
+          if (!parentLocation) {
+            return new Response(JSON.stringify({ error: "Parent location not found" }), { status: 404 });
+          }
+
+          // Validate files
+          if (!files || files.length === 0) {
+            return new Response(JSON.stringify({ error: "No files provided. Please select at least one image." }), { status: 400 });
+          }
+
+          // File type validation
+          const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+          const maxFileSize = 10 * 1024 * 1024; // 10MB per file
+          const maxTotalSize = 50 * 1024 * 1024; // 50MB total
+          let totalSize = 0;
+
+          for (const file of files) {
+            if (!(file instanceof File)) {
+              return new Response(JSON.stringify({ error: "Invalid file data" }), { status: 400 });
+            }
+
+            if (!allowedTypes.includes(file.type)) {
+              return new Response(JSON.stringify({ error: `Invalid file type for "${file.name}". Only JPEG, PNG, WebP, and GIF images are allowed.` }), { status: 400 });
+            }
+
+            if (file.size > maxFileSize) {
+              return new Response(JSON.stringify({ error: `File "${file.name}" exceeds 10MB limit.` }), { status: 413 });
+            }
+
+            totalSize += file.size;
+          }
+
+          if (totalSize > maxTotalSize) {
+            return new Response(JSON.stringify({ error: "Total upload size exceeds 50MB limit." }), { status: 413 });
+          }
+
+          // Limit number of files
+          if (files.length > 20) {
+            return new Response(JSON.stringify({ error: "Maximum 20 files allowed per upload." }), { status: 400 });
+          }
+
+          // Create entry
+          const timestamp = Date.now();
+          const entry = createFromUpload(parentId, timestamp);
+          saveLocation(entry);
+
+          // Create nested folder structure for images
+          const cleanName = parentLocation.name.replace(/[^a-z0-9]/gi, '_').toLowerCase().substring(0, 30);
+
+          // Build nested path: images/{cleanName}/uploads/{timestamp}/
+          const baseImagesDir = join(process.cwd(), 'images');
+          const locationDir = join(baseImagesDir, cleanName);
+          const typeDir = join(locationDir, 'uploads');
+          const timestampDir = join(typeDir, timestamp.toString());
+
+          // Create nested directories
+          if (!existsSync(baseImagesDir)) await mkdir(baseImagesDir);
+          if (!existsSync(locationDir)) await mkdir(locationDir);
+          if (!existsSync(typeDir)) await mkdir(typeDir);
+          if (!existsSync(timestampDir)) await mkdir(timestampDir);
+
+          const locationDirPath = timestampDir;
+
+          // Save files
+          const savedPaths = [];
+          for (let i = 0; i < files.length; i++) {
+            const file = files[i] as File;
+            try {
+              // Preserve original file extension
+              const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+              const filename = `image_${i}.${ext}`;
+              const filePath = join(locationDirPath, filename);
+
+              await Bun.write(filePath, file);
+              savedPaths.push(`images/${cleanName}/uploads/${timestamp}/${filename}`);
+            } catch (e) {
+              console.error('Error saving file:', e);
+            }
+          }
+
+          // Update entry with image paths
+          if (savedPaths.length > 0) {
+            entry.images = savedPaths;
+            saveLocation(entry);
+          }
+
+          return new Response(JSON.stringify({ success: true, entry }), {
+            headers: { "Content-Type": "application/json" }
+          });
+
+        } catch (error) {
+          console.error('Upload error:', error);
+          return new Response(JSON.stringify({ error: "Server Error" }), { status: 500 });
+        }
+      }
+
+      if (url.pathname === "/api/open-folder" && req.method === "POST") {
+        try {
+            const body = await req.json();
+            const { folderPath } = body;
+            
+            if (!folderPath) {
+                return new Response(JSON.stringify({ error: "Folder path required" }), { status: 400 });
+            }
+
+            // Ensure the path is safe and within the project directory
+            // We expect a relative path like "images/folder_name"
+            const fullPath = join(process.cwd(), folderPath);
+            
+            // Basic security check
+            if (!fullPath.startsWith(process.cwd())) {
+                 return new Response(JSON.stringify({ error: "Invalid path" }), { status: 403 });
+            }
+
+            // Spawn the 'open' command (macOS)
+            Bun.spawn(["open", fullPath]);
+            
+            return new Response(JSON.stringify({ success: true }), {
+                headers: { "Content-Type": "application/json" }
+            });
+        } catch (error) {
+            console.error("Error opening folder:", error);
+            return new Response(JSON.stringify({ error: "Failed to open folder" }), { status: 500 });
         }
       }
 
@@ -232,29 +463,32 @@ const htmlTemplate = `
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
         }
+        .category-tab {
+            background: rgba(243, 244, 246, 1);
+            color: rgba(107, 114, 128, 1);
+        }
+        .category-tab:hover {
+            background: rgba(229, 231, 235, 1);
+        }
+        .category-tab.active {
+            background: rgba(59, 130, 246, 1);
+            color: white;
+        }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen p-8 font-sans text-gray-800">
     <div class="max-w-6xl mx-auto">
         <header class="mb-8 flex justify-between items-center">
             <div>
-                <h1 class="text-3xl font-bold text-blue-600">🌍 URL Manager</h1>
-                <p class="text-gray-500">Manage Google Maps & Instagram URLs</p>
+                <h1 class="text-3xl font-bold text-blue-600">🌍 Location Manager</h1>
+                <p class="text-gray-500">Manage locations with Instagram content</p>
             </div>
             <div class="flex gap-3">
-                <button onclick="openAddModal()" class="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-lg transition shadow-md flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
-                        <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
-                        <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
-                    </svg>
-                    Add Instagram
-                </button>
                 <button onclick="openAddMapsModal()" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition shadow-md flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                          <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" />
                     </svg>
-                    Add Maps
+                    New Location
                 </button>
                 <button onclick="fetchData()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition shadow-md flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -265,34 +499,39 @@ const htmlTemplate = `
             </div>
         </header>
 
-        <div class="mb-6 flex gap-4 border-b border-gray-200">
-            <button onclick="setTab('maps')" id="tab-maps" class="pb-2 px-1 border-b-2 border-blue-500 font-medium text-blue-600 transition-colors">
-                Google Maps
+        <!-- Category Filter Tabs -->
+        <div class="mb-6 bg-white rounded-lg shadow-md p-2 flex gap-2 overflow-x-auto">
+            <button onclick="filterByCategory('all')"
+                    class="category-tab px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap active"
+                    data-category="all">
+                All Locations
             </button>
-            <button onclick="setTab('instagram')" id="tab-instagram" class="pb-2 px-1 border-b-2 border-transparent hover:border-gray-300 font-medium text-gray-500 hover:text-gray-700 transition-colors">
-                Instagram
+            <button onclick="filterByCategory('dining')"
+                    class="category-tab px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap"
+                    data-category="dining">
+                🍽️ Dining
+            </button>
+            <button onclick="filterByCategory('accommodations')"
+                    class="category-tab px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap"
+                    data-category="accommodations">
+                🏨 Accommodations
+            </button>
+            <button onclick="filterByCategory('attractions')"
+                    class="category-tab px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap"
+                    data-category="attractions">
+                🎯 Attractions
+            </button>
+            <button onclick="filterByCategory('nightlife')"
+                    class="category-tab px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap"
+                    data-category="nightlife">
+                🎉 Nightlife
             </button>
         </div>
 
-        <div class="glass rounded-xl shadow-lg overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="w-full text-left">
-                    <thead class="bg-gray-50 border-b border-gray-200">
-                        <tr>
-                            <th class="p-4 font-semibold text-gray-600 w-1/4">Name</th>
-                            <th class="p-4 font-semibold text-gray-600 w-2/4">Address</th>
-                            <th class="p-4 font-semibold text-gray-600 w-1/4 text-right">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tableBody" class="divide-y divide-gray-100">
-                        <tr>
-                            <td colspan="3" class="p-8 text-center text-gray-400">Loading locations...</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+        <div id="locationsContainer" class="space-y-4">
+            <div class="text-center p-8 text-gray-400">Loading locations...</div>
         </div>
-        
+
         <div id="stats" class="mt-4 text-right text-sm text-gray-500"></div>
     </div>
 
@@ -306,9 +545,18 @@ const htmlTemplate = `
           <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
             <div class="sm:flex sm:items-start">
               <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-                <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4" id="modal-title">
-                  Images
-                </h3>
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                    Images
+                    </h3>
+                    <button id="openFolderBtn" onclick="handleOpenFolder()" class="hidden bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-3 py-1 rounded-md text-sm font-medium transition-colors flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4l2 2h6a2 2 0 012 2v1H8a2 2 0 00-2 2v5H4a2 2 0 01-2-2V6z" clip-rule="evenodd" />
+                            <path d="M6 17h10a2 2 0 002-2v-5H6v7z" />
+                        </svg>
+                        Open Folder
+                    </button>
+                </div>
                 <div id="modalContent" class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto">
                   <!-- Images will be injected here -->
                 </div>
@@ -324,15 +572,15 @@ const htmlTemplate = `
       </div>
     </div>
 
-    <!-- Add New Modal -->
+    <!-- Add Instagram Modal -->
     <div id="addModal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
       <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
         <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="closeAddModal()"></div>
         <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-        
+
         <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full">
           <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-            <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Add New Instagram Embed</h3>
+            <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Add Instagram Embed to <span id="modalLocationName" class="text-blue-600"></span></h3>
             <div class="mb-4">
                 <label for="embedCode" class="block text-sm font-medium text-gray-700 mb-2">Paste Embed Code</label>
                 <textarea id="embedCode" rows="6" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border" placeholder="<blockquote ...>"></textarea>
@@ -340,7 +588,7 @@ const htmlTemplate = `
             <div id="addStatus" class="text-sm hidden"></div>
           </div>
           <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-            <button type="button" onclick="submitEmbed()" id="submitBtn" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:ml-3 sm:w-auto sm:text-sm">
+            <button type="button" onclick="submitEmbed()" id="submitBtn" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-pink-600 text-base font-medium text-white hover:bg-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500 sm:ml-3 sm:w-auto sm:text-sm">
               Process & Save
             </button>
             <button type="button" onclick="closeAddModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
@@ -368,6 +616,15 @@ const htmlTemplate = `
                 <label for="locationAddress" class="block text-sm font-medium text-gray-700 mb-2">Full Address</label>
                 <input type="text" id="locationAddress" class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border" placeholder="e.g. Champ de Mars, 5 Av. Anatole France, 75007 Paris, France">
             </div>
+            <div class="mb-4">
+                <label for="locationCategory" class="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                <select id="locationCategory" class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border">
+                  <option value="attractions">🎯 Attractions</option>
+                  <option value="dining">🍽️ Dining</option>
+                  <option value="accommodations">🏨 Accommodations</option>
+                  <option value="nightlife">🎉 Nightlife</option>
+                </select>
+            </div>
             <div id="addMapsStatus" class="text-sm hidden"></div>
           </div>
           <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
@@ -382,15 +639,134 @@ const htmlTemplate = `
       </div>
     </div>
 
+    <!-- Edit Location Modal -->
+    <div id="editMapsModal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+      <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="closeEditMapsModal()"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full">
+          <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+            <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Edit Location</h3>
+            <div class="mb-4">
+                <label for="editLocationName" class="block text-sm font-medium text-gray-700 mb-2">Location Name</label>
+                <input type="text" id="editLocationName" class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border">
+            </div>
+             <div class="mb-4">
+                <label for="editLocationAddress" class="block text-sm font-medium text-gray-700 mb-2">Full Address</label>
+                <input type="text" id="editLocationAddress" class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border">
+            </div>
+            <div class="mb-4">
+                <label for="editLocationCategory" class="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                <select id="editLocationCategory" class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border">
+                  <option value="attractions">🎯 Attractions</option>
+                  <option value="dining">🍽️ Dining</option>
+                  <option value="accommodations">🏨 Accommodations</option>
+                  <option value="nightlife">🎉 Nightlife</option>
+                </select>
+            </div>
+            <div id="editMapsStatus" class="text-sm hidden"></div>
+          </div>
+          <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+            <button type="button" onclick="submitEditMaps()" id="submitEditMapsBtn" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
+              Save Changes
+            </button>
+            <button type="button" onclick="closeEditMapsModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:w-auto sm:text-sm">
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add Upload Modal -->
+    <div id="addUploadModal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+      <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="closeUploadModal()"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full">
+          <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+            <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Upload Images to <span id="uploadModalLocationName" class="text-purple-600"></span></h3>
+
+            <!-- Hidden File Input -->
+            <input type="file" id="uploadFiles" multiple accept="image/*" class="hidden" onchange="previewFiles()">
+
+            <!-- Drop Zone -->
+            <div id="dropZone" onclick="document.getElementById('uploadFiles').click()"
+                 ondrop="handleFileDrop(event)"
+                 ondragover="handleDragOver(event)"
+                 ondragleave="handleDragLeave(event)"
+                 class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-purple-400 transition-colors bg-gray-50 hover:bg-purple-50">
+              <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              <p class="mt-2 text-sm text-gray-600">Click to select images or drag and drop</p>
+              <p class="text-xs text-gray-500 mt-1">PNG, JPG, GIF, WebP up to 10MB per file</p>
+            </div>
+
+            <!-- Preview Area -->
+            <div id="uploadPreview" class="mt-4 grid grid-cols-3 gap-2 max-h-60 overflow-y-auto hidden"></div>
+
+            <div id="uploadStatus" class="text-sm mt-4 hidden"></div>
+          </div>
+          <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+            <button type="button" onclick="submitUpload()" id="submitUploadBtn" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-purple-600 text-base font-medium text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 sm:ml-3 sm:w-auto sm:text-sm" disabled>
+              Upload Images
+            </button>
+            <button type="button" onclick="closeUploadModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script>
         let allData = [];
         let serverCwd = '';
-        let currentTab = 'maps';
+        let currentFolder = '';
+        let selectedLocationId = null;
+        let expandedLocations = new Set(); // Track which locations are expanded
+        let currentCategoryFilter = 'all'; // Track current category filter
+        let editingLocationId = null;  // Track which location is being edited
+
+        function filterByCategory(category) {
+            currentCategoryFilter = category;
+
+            // Update active tab styling
+            document.querySelectorAll('.category-tab').forEach(tab => {
+                if (tab.getAttribute('data-category') === category) {
+                    tab.classList.add('active');
+                } else {
+                    tab.classList.remove('active');
+                }
+            });
+
+            // Re-render with filter
+            renderLocations();
+        }
+
+        function openAddModal(locationId, locationName) {
+            selectedLocationId = locationId;
+            document.getElementById('modalLocationName').innerText = locationName;
+            document.getElementById('addModal').classList.remove('hidden');
+            document.getElementById('embedCode').value = '';
+            document.getElementById('addStatus').classList.add('hidden');
+            document.getElementById('submitBtn').disabled = false;
+            document.getElementById('submitBtn').innerText = 'Process & Save';
+        }
+
+        function closeAddModal() {
+            document.getElementById('addModal').classList.add('hidden');
+            selectedLocationId = null;
+        }
 
         function openAddMapsModal() {
             document.getElementById('addMapsModal').classList.remove('hidden');
             document.getElementById('locationName').value = '';
             document.getElementById('locationAddress').value = '';
+            document.getElementById('locationCategory').value = 'attractions';
             document.getElementById('addMapsStatus').classList.add('hidden');
             document.getElementById('submitMapsBtn').disabled = false;
             document.getElementById('submitMapsBtn').innerText = 'Save Location';
@@ -400,9 +776,240 @@ const htmlTemplate = `
             document.getElementById('addMapsModal').classList.add('hidden');
         }
 
+        function openEditMapsModal(locationId, locationName) {
+            editingLocationId = locationId;
+
+            // Find the location in allData
+            const location = allData.find(loc => loc.id === locationId);
+            if (!location) {
+                alert('Location not found');
+                return;
+            }
+
+            // Populate form with current values
+            document.getElementById('editLocationName').value = location.name;
+            document.getElementById('editLocationAddress').value = location.address;
+            document.getElementById('editLocationCategory').value = location.category || 'attractions';
+
+            // Show modal
+            document.getElementById('editMapsModal').classList.remove('hidden');
+            document.getElementById('editMapsStatus').classList.add('hidden');
+            document.getElementById('submitEditMapsBtn').disabled = false;
+            document.getElementById('submitEditMapsBtn').innerText = 'Save Changes';
+        }
+
+        function closeEditMapsModal() {
+            document.getElementById('editMapsModal').classList.add('hidden');
+            editingLocationId = null;
+        }
+
+        async function submitEditMaps() {
+            const name = document.getElementById('editLocationName').value;
+            const address = document.getElementById('editLocationAddress').value;
+            const category = document.getElementById('editLocationCategory').value;
+            const status = document.getElementById('editMapsStatus');
+            const btn = document.getElementById('submitEditMapsBtn');
+
+            if (!name || !address || !editingLocationId) return;
+
+            btn.disabled = true;
+            btn.innerText = 'Saving...';
+            status.classList.remove('hidden');
+            status.innerText = 'Updating location...';
+            status.className = 'text-sm text-blue-600 mb-4';
+
+            try {
+                const res = await fetch('/api/update-maps', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ id: editingLocationId, name, address, category })
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    status.innerText = 'Success! Location updated.';
+                    status.className = 'text-sm text-green-600 mb-4';
+                    setTimeout(() => {
+                        closeEditMapsModal();
+                        fetchData();  // Refresh the list
+                    }, 1000);
+                } else {
+                    status.innerText = 'Error: ' + (data.error || 'Unknown error');
+                    status.className = 'text-sm text-red-600 mb-4';
+                    btn.disabled = false;
+                    btn.innerText = 'Save Changes';
+                }
+            } catch (e) {
+                status.innerText = 'Network Error';
+                status.className = 'text-sm text-red-600 mb-4';
+                btn.disabled = false;
+                btn.innerText = 'Save Changes';
+            }
+        }
+
+        function openUploadModal(locationId, locationName) {
+            selectedLocationId = locationId;
+            document.getElementById('uploadModalLocationName').innerText = locationName;
+            document.getElementById('addUploadModal').classList.remove('hidden');
+
+            // Reset file input and preview
+            const fileInput = document.getElementById('uploadFiles');
+            fileInput.value = '';
+            document.getElementById('uploadPreview').innerHTML = '';
+            document.getElementById('uploadPreview').classList.add('hidden');
+            document.getElementById('uploadStatus').classList.add('hidden');
+            document.getElementById('submitUploadBtn').disabled = true;
+            document.getElementById('submitUploadBtn').innerText = 'Upload Images';
+        }
+
+        function closeUploadModal() {
+            document.getElementById('addUploadModal').classList.add('hidden');
+            selectedLocationId = null;
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const dropZone = document.getElementById('dropZone');
+            dropZone.classList.add('border-purple-500', 'bg-purple-100');
+            dropZone.classList.remove('border-gray-300', 'bg-gray-50');
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const dropZone = document.getElementById('dropZone');
+            dropZone.classList.remove('border-purple-500', 'bg-purple-100');
+            dropZone.classList.add('border-gray-300', 'bg-gray-50');
+        }
+
+        function handleFileDrop(e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const dropZone = document.getElementById('dropZone');
+            dropZone.classList.remove('border-purple-500', 'bg-purple-100');
+            dropZone.classList.add('border-gray-300', 'bg-gray-50');
+
+            const files = e.dataTransfer.files;
+            const fileInput = document.getElementById('uploadFiles');
+            fileInput.files = files;
+            previewFiles();
+        }
+
+        function previewFiles() {
+            const fileInput = document.getElementById('uploadFiles');
+            const files = fileInput.files;
+            const preview = document.getElementById('uploadPreview');
+            const submitBtn = document.getElementById('submitUploadBtn');
+
+            if (files.length === 0) {
+                preview.classList.add('hidden');
+                submitBtn.disabled = true;
+                return;
+            }
+
+            preview.innerHTML = '';
+            preview.classList.remove('hidden');
+            submitBtn.disabled = false;
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const reader = new FileReader();
+
+                reader.onload = (function(theFile, index) {
+                    return function(e) {
+                        const div = document.createElement('div');
+                        div.className = 'relative group';
+                        div.innerHTML = \`
+                            <img src="\${e.target.result}" class="w-full h-24 object-cover rounded-md border border-gray-200">
+                            <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 truncate rounded-b-md">
+                                \${theFile.name}
+                            </div>
+                            <button onclick="removeFile(\${index})" class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs font-bold hover:bg-red-600">
+                                ×
+                            </button>
+                        \`;
+                        preview.appendChild(div);
+                    };
+                })(file, i);
+
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function removeFile(index) {
+            const fileInput = document.getElementById('uploadFiles');
+            const dt = new DataTransfer();
+            const files = fileInput.files;
+
+            for (let i = 0; i < files.length; i++) {
+                if (i !== index) {
+                    dt.items.add(files[i]);
+                }
+            }
+
+            fileInput.files = dt.files;
+            previewFiles();
+        }
+
+        async function submitUpload() {
+            const fileInput = document.getElementById('uploadFiles');
+            const files = fileInput.files;
+            const status = document.getElementById('uploadStatus');
+            const btn = document.getElementById('submitUploadBtn');
+
+            if (!files || files.length === 0 || !selectedLocationId) {
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerText = 'Uploading...';
+            status.classList.remove('hidden');
+            status.innerText = \`Uploading \${files.length} image(s)...\`;
+            status.className = 'text-sm mt-4 text-blue-600';
+
+            try {
+                const formData = new FormData();
+                formData.append('locationId', selectedLocationId);
+
+                for (let i = 0; i < files.length; i++) {
+                    formData.append('files', files[i]);
+                }
+
+                const res = await fetch('/api/add-upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    status.innerText = 'Success! Images uploaded.';
+                    status.className = 'text-sm mt-4 text-green-600';
+                    setTimeout(() => {
+                        closeUploadModal();
+                        fetchData();
+                    }, 1000);
+                } else {
+                    status.innerText = 'Error: ' + (data.error || 'Unknown error');
+                    status.className = 'text-sm mt-4 text-red-600';
+                    btn.disabled = false;
+                    btn.innerText = 'Upload Images';
+                }
+            } catch (e) {
+                status.innerText = 'Network Error';
+                status.className = 'text-sm mt-4 text-red-600';
+                btn.disabled = false;
+                btn.innerText = 'Upload Images';
+            }
+        }
+
         async function submitMaps() {
             const name = document.getElementById('locationName').value;
             const address = document.getElementById('locationAddress').value;
+            const category = document.getElementById('locationCategory').value;
             const status = document.getElementById('addMapsStatus');
             const btn = document.getElementById('submitMapsBtn');
 
@@ -418,7 +1025,7 @@ const htmlTemplate = `
                 const res = await fetch('/api/add-maps', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ name, address })
+                    body: JSON.stringify({ name, address, category })
                 });
 
                 const data = await res.json();
@@ -444,24 +1051,12 @@ const htmlTemplate = `
             }
         }
 
-        function openAddModal() {
-            document.getElementById('addModal').classList.remove('hidden');
-            document.getElementById('embedCode').value = '';
-            document.getElementById('addStatus').classList.add('hidden');
-            document.getElementById('submitBtn').disabled = false;
-            document.getElementById('submitBtn').innerText = 'Process & Save';
-        }
-
-        function closeAddModal() {
-            document.getElementById('addModal').classList.add('hidden');
-        }
-
         async function submitEmbed() {
             const code = document.getElementById('embedCode').value;
             const status = document.getElementById('addStatus');
             const btn = document.getElementById('submitBtn');
-            
-            if (!code) return;
+
+            if (!code || !selectedLocationId) return;
 
             btn.disabled = true;
             btn.innerText = 'Processing...';
@@ -473,7 +1068,7 @@ const htmlTemplate = `
                 const res = await fetch('/api/add-instagram', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ embedCode: code })
+                    body: JSON.stringify({ embedCode: code, locationId: selectedLocationId })
                 });
 
                 const data = await res.json();
@@ -502,10 +1097,28 @@ const htmlTemplate = `
         function openModal(images, originalUrls) {
             const modal = document.getElementById('imageModal');
             const content = document.getElementById('modalContent');
+            const folderBtn = document.getElementById('openFolderBtn');
             
             if (!images || images.length === 0) {
                 content.innerHTML = '<p class="text-gray-500 italic">No images downloaded.</p>';
+                folderBtn.classList.add('hidden');
+                currentFolder = '';
             } else {
+                // Try to deduce folder path from the first image
+                // images[0] is like "images/subfolder/img.jpg" or "images/img.jpg"
+                const firstImage = images[0];
+                const parts = firstImage.split('/');
+                
+                // If it has a subfolder (parts.length > 2), use that. Otherwise default to 'images'
+                // Example: images/folder_name/file.jpg -> folder path is images/folder_name
+                if (parts.length > 2) {
+                    currentFolder = parts.slice(0, parts.length - 1).join('/');
+                } else {
+                    currentFolder = 'images';
+                }
+                
+                folderBtn.classList.remove('hidden');
+
                 // Get current origin (e.g. http://localhost:3000)
                 const origin = window.location.origin;
                 
@@ -544,31 +1157,47 @@ const htmlTemplate = `
             
             modal.classList.remove('hidden');
         }
+        
+        async function handleOpenFolder() {
+            if (!currentFolder) return;
+            
+            try {
+                const btn = document.getElementById('openFolderBtn');
+                const originalText = btn.innerHTML;
+                btn.innerText = 'Opening...';
+                
+                await fetch('/api/open-folder', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ folderPath: currentFolder })
+                });
+                
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                }, 1000);
+            } catch (e) {
+                console.error(e);
+                alert('Failed to open folder');
+            }
+        }
 
         function closeModal() {
             document.getElementById('imageModal').classList.add('hidden');
         }
 
-        function setTab(tab) {
-            currentTab = tab;
-            
-            // Update Tab UI
-            ['maps', 'instagram'].forEach(t => {
-                const el = document.getElementById('tab-' + t);
-                if (t === tab) {
-                    el.className = 'pb-2 px-1 border-b-2 border-blue-500 font-medium text-blue-600 transition-colors';
-                } else {
-                    el.className = 'pb-2 px-1 border-b-2 border-transparent hover:border-gray-300 font-medium text-gray-500 hover:text-gray-700 transition-colors';
-                }
-            });
-
-            renderTable();
+        function toggleLocation(locationId) {
+            if (expandedLocations.has(locationId)) {
+                expandedLocations.delete(locationId);
+            } else {
+                expandedLocations.add(locationId);
+            }
+            renderLocations();
         }
 
         async function fetchData() {
-            const tbody = document.getElementById('tableBody');
+            const container = document.getElementById('locationsContainer');
             const stats = document.getElementById('stats');
-            
+
             try {
                 const res = await fetch('/api/locations');
                 if (!res.ok) {
@@ -576,166 +1205,223 @@ const htmlTemplate = `
                 }
 
                 const responseData = await res.json();
-                
-                // Handle new response structure { locations: [], cwd: "..." }
+
                 if (responseData && responseData.locations && Array.isArray(responseData.locations)) {
                     allData = responseData.locations;
                     serverCwd = responseData.cwd;
-                } else if (Array.isArray(responseData)) {
-                    // Fallback for old structure (array)
-                    allData = responseData;
-                    serverCwd = '';
                 } else {
                     throw new Error('Invalid data format received from server');
                 }
-                
-                renderTable();
+
+                renderLocations();
             } catch (err) {
                 console.error(err);
-                tbody.innerHTML = \`<tr><td colspan="3" class="p-8 text-center text-red-500">Error loading data: \${err.message}.<br>Make sure the server is running.</td></tr>\`;
+                container.innerHTML = \`<div class="p-8 text-center text-red-500">Error loading data: \${err.message}.<br>Make sure the server is running.</div>\`;
             }
         }
 
-        function renderTable() {
-            const tbody = document.getElementById('tableBody');
-            const thead = document.querySelector('thead');
+        function renderLocations() {
+            const container = document.getElementById('locationsContainer');
             const stats = document.getElementById('stats');
 
-            let filteredData = [];
-            if (currentTab === 'maps') {
-                filteredData = allData.filter(d => d.address !== 'Instagram Embed');
-            } else if (currentTab === 'instagram') {
-                filteredData = allData.filter(d => d.address === 'Instagram Embed');
-            }
-
-            // Update Header
-            if (currentTab === 'instagram') {
-                thead.innerHTML = \`
-                    <tr>
-                        <th class="p-4 font-semibold text-gray-600 w-24">Preview</th>
-                        <th class="p-4 font-semibold text-gray-600">Name</th>
-                        <th class="p-4 font-semibold text-gray-600 w-1/4 text-right">Action</th>
-                    </tr>
-                \`;
-            } else {
-                 thead.innerHTML = \`
-                    <tr>
-                        <th class="p-4 font-semibold text-gray-600 w-24">Preview</th>
-                        <th class="p-4 font-semibold text-gray-600 w-1/5">Name</th>
-                        <th class="p-4 font-semibold text-gray-600 w-2/5">Address</th>
-                        <th class="p-4 font-semibold text-gray-600 w-1/5">Coordinates</th>
-                        <th class="p-4 font-semibold text-gray-600 w-auto text-right">Action</th>
-                    </tr>
-                \`;
+            // Apply category filter
+            let filteredData = allData;
+            if (currentCategoryFilter !== 'all') {
+                filteredData = allData.filter(loc => loc.category === currentCategoryFilter);
             }
 
             if (filteredData.length === 0) {
-                const colSpan = currentTab === 'instagram' ? 3 : 5;
-                tbody.innerHTML = \`<tr><td colspan="\${colSpan}" class="p-8 text-center text-gray-400">No locations found.</td></tr>\`;
-                stats.innerText = '0 locations';
+                const noResultsMessage = currentCategoryFilter !== 'all'
+                    ? \`No \${currentCategoryFilter} locations found.\`
+                    : 'No locations found. Create your first location to get started!';
+                container.innerHTML = \`<div class="text-center p-8 text-gray-400">\${noResultsMessage}</div>\`;
+                const totalCount = allData.length;
+                const filterText = currentCategoryFilter !== 'all' && totalCount > 0
+                    ? \` (\${currentCategoryFilter}: 0 of \${totalCount})\`
+                    : '';
+                stats.innerText = \`0 locations\${filterText}\`;
                 return;
             }
 
-            tbody.innerHTML = filteredData.map(loc => {
-                const isInstagram = loc.address === 'Instagram Embed';
-                
-                // Image Preview Logic
-                let previewHtml = '';
-                if (loc.images && loc.images.length > 0) {
-                     previewHtml = \`<img src="/\${loc.images[0]}" class="h-12 w-12 object-cover rounded-md shadow-sm border border-gray-200">\`;
-                } else {
-                     // Fallback icon
-                     previewHtml = isInstagram 
-                        ? '<div class="h-12 w-12 bg-pink-50 rounded-md flex items-center justify-center text-pink-300"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg></div>'
-                        : '<div class="h-12 w-12 bg-blue-50 rounded-md flex items-center justify-center text-blue-300">📍</div>';
-                }
+            const btnBase = "inline-flex items-center justify-center px-3 py-1.5 border rounded-md transition-all text-sm font-medium text-center";
 
-                // Base classes for all action buttons
-                const btnBase = "inline-flex items-center justify-center px-3 py-1.5 border rounded-md transition-all text-sm font-medium w-24 text-center";
+            container.innerHTML = filteredData.map(loc => {
+                const isExpanded = expandedLocations.has(loc.id);
+                const instagramCount = (loc.instagram_embeds || []).length;
+                const uploadCount = (loc.uploads || []).length;
+                const totalContent = instagramCount + uploadCount;
+                const hasCoords = loc.lat && loc.lng;
 
-                // Specific styles
-                const mapBtnClass = "border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300";
-                const instaBtnClass = "border-pink-200 text-pink-600 hover:bg-pink-50 hover:border-pink-300";
-                const embedBtnClass = "border-purple-200 text-purple-600 hover:bg-purple-50 hover:border-purple-300";
-                
-                let actionBtn;
-                if (isInstagram) {
-                    // Prepare images array safely
-                    const imagesJson = JSON.stringify(loc.images || []).replace(/"/g, '&quot;');
-                    const originalUrlsJson = JSON.stringify(loc.original_image_urls || []).replace(/"/g, '&quot;');
-                    
-                    actionBtn = \`
-                        <div class="flex gap-2 justify-end">
-                            <button onclick="handleCopy('\${loc.url}', this, 'bg-pink-600', 'border-pink-600')" class="\${btnBase} \${instaBtnClass}">
-                            Link
-                            </button>
-                            \${loc.embed_code ? \`
-                            <button onclick="handleCopy(this.getAttribute('data-embed'), this, 'bg-purple-600', 'border-purple-600')" class="\${btnBase} \${embedBtnClass}" data-embed="\${escapeHtml(loc.embed_code)}">
-                            Embed
-                            </button>
-                            \` : ''}
-                            \${(loc.images && loc.images.length > 0) ? \`
-                            <button onclick="openModal(\${imagesJson}, \${originalUrlsJson})" class="\${btnBase} border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-300">
-                                \${loc.images.length} Img
-                            </button>
-                            \` : ''}
+                // Category badge configuration
+                const categoryEmoji = {
+                    'dining': '🍽️',
+                    'accommodations': '🏨',
+                    'attractions': '🎯',
+                    'nightlife': '🎉'
+                };
+                const categoryColors = {
+                    'dining': 'bg-orange-100 text-orange-800',
+                    'accommodations': 'bg-blue-100 text-blue-800',
+                    'attractions': 'bg-green-100 text-green-800',
+                    'nightlife': 'bg-purple-100 text-purple-800'
+                };
+                const categoryLabel = loc.category || 'attractions';
+                const categoryColor = categoryColors[categoryLabel] || 'bg-gray-100 text-gray-800';
+                const categoryIcon = categoryEmoji[categoryLabel] || '📍';
+
+                return \`
+                    <div class="glass rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                        <!-- Main Location Header -->
+                        <div class="p-5 bg-white">
+                            <div class="flex items-start justify-between">
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-3 mb-2">
+                                        <h3 class="text-lg font-semibold text-gray-900">\${escapeHtml(loc.name)}</h3>
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium \${categoryColor}">
+                                            \${categoryIcon} \${categoryLabel}
+                                        </span>
+                                        \${instagramCount > 0 ? \`
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-pink-100 text-pink-800">
+                                                \${instagramCount} Instagram
+                                            </span>
+                                        \` : ''}
+                                        \${uploadCount > 0 ? \`
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                                \${uploadCount} Upload\${uploadCount === 1 ? '' : 's'}
+                                            </span>
+                                        \` : ''}
+                                    </div>
+                                    <p class="text-sm text-gray-600 mb-2">\${escapeHtml(loc.address)}</p>
+                                    \${hasCoords ? \`
+                                        <p class="text-xs text-gray-400">📍 \${loc.lat.toFixed(5)}, \${loc.lng.toFixed(5)}</p>
+                                    \` : ''}
+                                </div>
+                                <div class="flex flex-col gap-2 ml-4">
+                                    <div class="flex gap-2">
+                                        \${hasCoords ? \`
+                                            <button onclick="handleCopy('\${loc.lat}', this, 'bg-gray-600', 'border-gray-600')" class="\${btnBase} border-gray-200 text-gray-600 hover:bg-gray-50 w-16" title="Copy Latitude">
+                                                Lat
+                                            </button>
+                                            <button onclick="handleCopy('\${loc.lng}', this, 'bg-gray-600', 'border-gray-600')" class="\${btnBase} border-gray-200 text-gray-600 hover:bg-gray-50 w-16" title="Copy Longitude">
+                                                Lng
+                                            </button>
+                                        \` : ''}
+                                        <button onclick="handleCopy('\${escapeHtml(loc.url)}', this, 'bg-blue-50', 'border-blue-300')"
+                                                class="\${btnBase} border-blue-200 text-blue-600 hover:bg-blue-50 px-4">
+                                            Maps
+                                        </button>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <button onclick="openEditMapsModal(\${loc.id}, '\${escapeHtml(loc.name)}')" class="\${btnBase} bg-blue-500 hover:bg-blue-600 text-white border-blue-500 flex-1">
+                                            ✏️ Edit
+                                        </button>
+                                        <button onclick="openAddModal(\${loc.id}, '\${escapeHtml(loc.name)}')" class="\${btnBase} bg-pink-500 hover:bg-pink-600 text-white border-pink-500 flex-1">
+                                            + Instagram
+                                        </button>
+                                        <button onclick="openUploadModal(\${loc.id}, '\${escapeHtml(loc.name)}')" class="\${btnBase} bg-purple-500 hover:bg-purple-600 text-white border-purple-500 flex-1">
+                                            + Upload
+                                        </button>
+                                    </div>
+                                    \${totalContent > 0 ? \`
+                                        <div class="flex gap-2 mt-2">
+                                            <button onclick="toggleLocation(\${loc.id})" class="\${btnBase} border-gray-300 text-gray-700 hover:bg-gray-50 w-full">
+                                                \${isExpanded ? '▼ Hide' : '▶ Show'} Content
+                                            </button>
+                                        </div>
+                                    \` : ''}
+                                </div>
+                            </div>
                         </div>
-                    \`;
-                } else {
-                    const hasCoords = loc.lat && loc.lng;
-                    actionBtn = \`
-                        <div class="flex gap-2 justify-end">
-                            \${hasCoords ? \`
-                                <button onclick="handleCopy('\${loc.lat}', this, 'bg-gray-600', 'border-gray-600')" class="\${btnBase} border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300" title="Copy Latitude">
-                                    Lat
-                                </button>
-                                <button onclick="handleCopy('\${loc.lng}', this, 'bg-gray-600', 'border-gray-600')" class="\${btnBase} border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300" title="Copy Longitude">
-                                    Lng
-                                </button>
-                            \` : ''}
-                            <a href="\${loc.url}" target="_blank" class="\${btnBase} \${mapBtnClass}">
-                                Maps
-                            </a>
-                        </div>
-                    \`;
-                }
 
-                if (isInstagram) {
-                     return \`
-                        <tr class="hover:bg-gray-50 transition-colors group">
-                            <td class="p-4">
-                                \${previewHtml}
-                            </td>
-                            <td class="p-4 font-medium text-gray-900">
-                                \${escapeHtml(loc.name)}
-                            </td>
-                            <td class="p-4 text-right">
-                                \${actionBtn}
-                            </td>
-                        </tr>
-                    \`;
-                } else {
-                    return \`
-                        <tr class="hover:bg-gray-50 transition-colors group">
-                            <td class="p-4">
-                                \${previewHtml}
-                            </td>
-                            <td class="p-4 font-medium text-gray-900">
-                                \${escapeHtml(loc.name)}
-                            </td>
-                            <td class="p-4 text-gray-600">\${escapeHtml(loc.address)}</td>
-                            <td class="p-4 text-gray-500 text-sm">
-                                \${loc.lat && loc.lng ? \`\${loc.lat.toFixed(5)}, \${loc.lng.toFixed(5)}\` : '<span class="italic text-gray-400">N/A</span>'}
-                            </td>
-                            <td class="p-4 text-right">
-                                \${actionBtn}
-                            </td>
-                        </tr>
-                    \`;
-                }
+                        <!-- Attached Content (Expandable) -->
+                        \${isExpanded && totalContent > 0 ? \`
+                            <div class="border-t border-gray-200 bg-gray-50 p-4">
+                                <h4 class="text-sm font-medium text-gray-700 mb-3">Attached Content</h4>
+                                <div class="space-y-3">
+                                    \${(loc.instagram_embeds || []).map(embed => {
+                                        const imagesJson = JSON.stringify(embed.images || []).replace(/"/g, '&quot;');
+                                        const originalUrlsJson = JSON.stringify(embed.original_image_urls || []).replace(/"/g, '&quot;');
+                                        const hasImages = embed.images && embed.images.length > 0;
+
+                                        return \`
+                                            <div class="bg-white rounded-lg p-3 flex items-center gap-3 shadow-sm">
+                                                \${hasImages ? \`
+                                                    <img src="/\${embed.images[0]}" class="h-16 w-16 object-cover rounded-md border border-gray-200">
+                                                \` : \`
+                                                    <div class="h-16 w-16 bg-pink-50 rounded-md flex items-center justify-center text-pink-300 border border-pink-100">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                            <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                                                            <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                                                            <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+                                                        </svg>
+                                                    </div>
+                                                \`}
+                                                <div class="flex-1 min-w-0">
+                                                    <p class="text-sm font-medium text-gray-900 truncate">\${escapeHtml(embed.name)}</p>
+                                                    <p class="text-xs text-gray-500 truncate">\${embed.url}</p>
+                                                </div>
+                                                <div class="flex gap-2">
+                                                    <button onclick="handleCopy('\${embed.url}', this, 'bg-pink-600', 'border-pink-600')" class="\${btnBase} border-pink-200 text-pink-600 hover:bg-pink-50 w-16 text-xs">
+                                                        Link
+                                                    </button>
+                                                    \${embed.embed_code ? \`
+                                                        <button onclick="handleCopy(this.getAttribute('data-embed'), this, 'bg-purple-600', 'border-purple-600')" class="\${btnBase} border-purple-200 text-purple-600 hover:bg-purple-50 w-16 text-xs" data-embed="\${escapeHtml(embed.embed_code)}">
+                                                            Embed
+                                                        </button>
+                                                    \` : ''}
+                                                    \${hasImages ? \`
+                                                        <button onclick="openModal(\${imagesJson}, \${originalUrlsJson})" class="\${btnBase} border-indigo-200 text-indigo-600 hover:bg-indigo-50 w-20 text-xs">
+                                                            \${embed.images.length} Img
+                                                        </button>
+                                                    \` : ''}
+                                                </div>
+                                            </div>
+                                        \`;
+                                    }).join('')}
+
+                                    \${(loc.uploads || []).map(upload => {
+                                        const imagesJson = JSON.stringify(upload.images || []).replace(/"/g, '&quot;');
+                                        const hasImages = upload.images && upload.images.length > 0;
+
+                                        return \`
+                                            <div class="bg-white rounded-lg p-3 flex items-center gap-3 shadow-sm">
+                                                \${hasImages ? \`
+                                                    <img src="/\${upload.images[0]}" class="h-16 w-16 object-cover rounded-md border border-gray-200">
+                                                \` : \`
+                                                    <div class="h-16 w-16 bg-purple-50 rounded-md flex items-center justify-center text-purple-300 border border-purple-100">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                                        </svg>
+                                                    </div>
+                                                \`}
+                                                <div class="flex-1 min-w-0">
+                                                    <p class="text-sm font-medium text-gray-900 truncate">\${escapeHtml(upload.name)}</p>
+                                                    <p class="text-xs text-gray-500">\${upload.images.length} image(s)</p>
+                                                </div>
+                                                <div class="flex gap-2">
+                                                    \${hasImages ? \`
+                                                        <button onclick="openModal(\${imagesJson}, [])" class="\${btnBase} border-purple-200 text-purple-600 hover:bg-purple-50 w-20 text-xs">
+                                                            \${upload.images.length} Img
+                                                        </button>
+                                                    \` : ''}
+                                                </div>
+                                            </div>
+                                        \`;
+                                    }).join('')}
+                                </div>
+                            </div>
+                        \` : ''}
+                    </div>
+                \`;
             }).join('');
-            
-            stats.innerText = \`\${filteredData.length} location\${filteredData.length === 1 ? '' : 's'} displayed\`;
+
+            // Update stats with filter info
+            const totalCount = allData.length;
+            const filteredCount = filteredData.length;
+            const filterText = currentCategoryFilter !== 'all'
+                ? \` (\${currentCategoryFilter}: \${filteredCount} of \${totalCount})\`
+                : '';
+            stats.innerText = \`\${filteredCount} location\${filteredCount === 1 ? '' : 's'}\${filterText}\`;
         }
         
         async function handleCopy(text, btn, activeBgClass, activeBorderClass) {

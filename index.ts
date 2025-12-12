@@ -2,8 +2,9 @@ import prompts from 'prompts';
 import { join } from 'node:path';
 import { readdir, writeFile, readFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { saveLocation, getAllLocations, clearDatabase, type LocationEntry } from './db';
-import { generateGoogleMapsUrl, processLocationsFile, extractInstagramData, type RawLocation } from './utils';
+import { saveLocation, getAllLocations, clearDatabase, getLocationById, type LocationEntry } from './db';
+import { generateGoogleMapsUrl, processLocationsFile, extractInstagramData, normalizeInstagram, type RawLocation } from './utils';
+import { createFromMaps, createFromInstagram } from './location';
 import { startServer } from './server';
 
 async function main() {
@@ -13,16 +14,17 @@ async function main() {
   const response = await prompts({
     type: 'select',
     name: 'mode',
-    message: 'Select Mode:',
+    message: 'Select Mode (use arrow keys or type number):',
     choices: [
-      { title: 'Single Location', value: 'single' },
-      { title: 'Batch Mode (from file)', value: 'batch' },
-      { title: 'Extract from Instagram Embed', value: 'instagram' },
-      { title: 'View Database History', value: 'history' },
-      { title: 'Start Web Interface', value: 'web' },
-      { title: 'Kill / Clear All Data', value: 'kill' },
-      { title: 'Exit', value: 'exit' }
-    ]
+      { title: '1. Single Location', value: 'single' },
+      { title: '2. Batch Mode (from file)', value: 'batch' },
+      { title: '3. Extract from Instagram Embed', value: 'instagram' },
+      { title: '4. View Database History', value: 'history' },
+      { title: '5. Start Web Interface', value: 'web' },
+      { title: '6. Kill / Clear All Data', value: 'kill' },
+      { title: '7. Exit', value: 'exit' }
+    ],
+    hint: 'Press number key (1-7) or use arrows'
   });
 
   if (response.mode === 'single') {
@@ -46,21 +48,42 @@ async function main() {
 
 async function handleViewHistory() {
   const locations = getAllLocations();
-  
+
   if (locations.length === 0) {
     console.log("\n📭 Database is empty.");
     return;
   }
 
-  console.log(`\n📜 Found ${locations.length} locations in history:\n`);
-  // console.table is nice, but let's make sure we display relevant info clearly
-  // Limiting URL length for display might be good if it's too long, but usually console.table handles it.
-  console.table(locations.map(l => ({
-    Name: l.name,
-    Address: l.address.length > 50 ? l.address.substring(0, 47) + '...' : l.address,
-    URL: l.url,
-    Images: l.images ? l.images.length : 0
-  })));
+  // Filter main locations (not Instagram embeds)
+  const mainLocations = locations.filter(l => l.type === 'maps' || !l.parent_id);
+
+  console.log(`\n📜 Found ${mainLocations.length} main locations in database:\n`);
+
+  mainLocations.forEach(loc => {
+    // Get Instagram embeds and uploads for this location
+    const instagramEmbeds = locations.filter(e => e.parent_id === loc.id && e.type === 'instagram');
+    const uploadEntries = locations.filter(e => e.parent_id === loc.id && e.type === 'upload');
+
+    console.log(`\n📍 ${loc.name}`);
+    console.log(`   Category: ${loc.category || 'attractions'}`);
+    console.log(`   Address: ${loc.address}`);
+    console.log(`   URL: ${loc.url}`);
+    if (loc.lat && loc.lng) {
+      console.log(`   Coordinates: ${loc.lat}, ${loc.lng}`);
+    }
+    if (instagramEmbeds.length > 0) {
+      console.log(`   📸 Instagram Embeds: ${instagramEmbeds.length}`);
+      instagramEmbeds.forEach((embed, idx) => {
+        console.log(`     ${idx + 1}. ${embed.name} (${embed.images?.length || 0} images)`);
+      });
+    }
+    if (uploadEntries.length > 0) {
+      console.log(`   ☁️  Uploads: ${uploadEntries.length}`);
+      uploadEntries.forEach((upload, idx) => {
+        console.log(`     ${idx + 1}. ${upload.name} (${upload.images?.length || 0} images)`);
+      });
+    }
+  });
 }
 
 async function handleSingleMode() {
@@ -76,13 +99,26 @@ async function handleSingleMode() {
       name: 'address',
       message: 'Enter Full Address:',
       validate: value => value.length > 0 ? true : 'Address is required'
+    },
+    {
+      type: 'select',
+      name: 'category',
+      message: 'Select Category (use arrow keys or type number):',
+      choices: [
+        { title: '1. 🎯 Attractions', value: 'attractions' },
+        { title: '2. 🍽️  Dining', value: 'dining' },
+        { title: '3. 🏨 Accommodations', value: 'accommodations' },
+        { title: '4. 🎉 Nightlife', value: 'nightlife' }
+      ],
+      initial: 0,
+      hint: 'Press number key (1-4) or use arrows'
     }
   ]);
 
   if (!input.name || !input.address) return;
 
-  const url = generateGoogleMapsUrl(input.name, input.address);
-  const entry: LocationEntry = { name: input.name, address: input.address, url };
+  // Create unified Location entry (may fetch coords if you provide API key via env)
+  const entry = await createFromMaps(input.name, input.address, process.env.GOOGLE_MAPS_API_KEY, input.category);
 
   // Save to DB
   saveLocation(entry);
@@ -133,8 +169,9 @@ async function handleBatchMode() {
     const fileSelection = await prompts({
       type: 'select',
       name: 'filename',
-      message: 'Select a file to process:',
-      choices: locationFiles.map(f => ({ title: f, value: f }))
+      message: 'Select a file to process (use arrow keys or type number):',
+      choices: locationFiles.map((f, idx) => ({ title: `${idx + 1}. ${f}`, value: f })),
+      hint: 'Press number key or use arrows'
     });
 
     if (!fileSelection.filename) return;
@@ -143,15 +180,31 @@ async function handleBatchMode() {
     console.log(`Processing ${fullPath}...`);
 
     const rawLocations = await processLocationsFile(fullPath);
+
+    // Ask for category for the entire batch
+    const categorySelection = await prompts({
+      type: 'select',
+      name: 'category',
+      message: 'Select category for all locations in this batch (use arrow keys or type number):',
+      choices: [
+        { title: '1. 🎯 Attractions', value: 'attractions' },
+        { title: '2. 🍽️  Dining', value: 'dining' },
+        { title: '3. 🏨 Accommodations', value: 'accommodations' },
+        { title: '4. 🎉 Nightlife', value: 'nightlife' }
+      ],
+      initial: 0,
+      hint: 'All locations will be assigned this category'
+    });
+
+    if (!categorySelection.category) return;
+
     const newEntries: Record<string, string> = {};
     let processedCount = 0;
 
     for (const loc of rawLocations) {
-      const url = generateGoogleMapsUrl(loc.name, loc.address);
-      const entry: LocationEntry = { name: loc.name, address: loc.address, url };
-      
+      const entry = await createFromMaps(loc.name, loc.address, process.env.GOOGLE_MAPS_API_KEY, categorySelection.category);
       saveLocation(entry);
-      newEntries[loc.name] = url;
+      newEntries[loc.name] = entry.url;
       processedCount++;
     }
 
@@ -159,7 +212,7 @@ async function handleBatchMode() {
     console.log(JSON.stringify(newEntries, null, 2));
 
     // Save to JSON in the same folder
-    const outputFileName = 'locations_urls.json';
+    const outputFileName = 'location_urls.json';
     const outputPath = join(folderPath, outputFileName);
     
     await updateJsonFile(outputPath, newEntries);
@@ -171,14 +224,44 @@ async function handleBatchMode() {
 }
 
 async function handleInstagramMode() {
+  // First, get all main locations to choose from
+  const allLocations = getAllLocations();
+  const mainLocations = allLocations.filter(l => l.type === 'maps' || !l.parent_id);
+
+  if (mainLocations.length === 0) {
+    console.log("\n❌ No locations found. Please create a location first before adding Instagram embeds.");
+    return;
+  }
+
+  // Let user select a location
+  const locationResponse = await prompts({
+    type: 'select',
+    name: 'locationId',
+    message: 'Select a location to add Instagram embed to (use arrow keys or type number):',
+    choices: mainLocations.map((l, idx) => ({
+      title: `${idx + 1}. ${l.name} (${l.address})`,
+      value: l.id
+    })),
+    hint: 'Press number key or use arrows'
+  });
+
+  if (!locationResponse.locationId) return;
+
+  const selectedLocation = getLocationById(locationResponse.locationId);
+  if (!selectedLocation) {
+    console.error("❌ Selected location not found.");
+    return;
+  }
+
   const methodResponse = await prompts({
     type: 'select',
     name: 'method',
-    message: 'Select Input Method:',
+    message: 'Select Input Method (use arrow keys or type number):',
     choices: [
-      { title: 'Paste Code', value: 'paste' },
-      { title: 'Read from File', value: 'file' }
-    ]
+      { title: '1. Paste Code', value: 'paste' },
+      { title: '2. Read from File', value: 'file' }
+    ],
+    hint: 'Press 1 or 2, or use arrows'
   });
 
   let htmlContent = '';
@@ -219,24 +302,11 @@ async function handleInstagramMode() {
     return;
   }
 
-  const name = author || (await prompts({
-      type: 'text',
-      name: 'name',
-      message: 'Could not extract author name. Please enter a name for this location:',
-      validate: value => value.length > 0 ? true : 'Name is required'
-    })).name;
-    
-  if (!name) return;
-
-  const entry: LocationEntry = { 
-    name: name, 
-    address: "Instagram Embed", 
-    url: url,
-    embed_code: htmlContent
-  };
+  // Create Instagram entry linked to the selected location
+  const entry = createFromInstagram(htmlContent, selectedLocation.id);
 
   saveLocation(entry);
-  console.log(`\n✅ Saved Instagram Location: ${name}`);
+  console.log(`\n✅ Saved Instagram embed to location: ${selectedLocation.name}`);
   console.log(`🔗 URL: ${url}`);
 
   try {
@@ -296,12 +366,24 @@ async function handleInstagramMode() {
         console.log(imageUrls);
 
         console.log('\n⬇️ Downloading images...');
-        const imagesDir = join(process.cwd(), 'images');
-        
-        // Ensure directory exists
-        if (!existsSync(imagesDir)) {
-            await mkdir(imagesDir);
-        }
+
+        // Create nested folder structure for this location
+        const cleanName = selectedLocation.name.replace(/[^a-z0-9]/gi, '_').toLowerCase().substring(0, 30);
+        const timestamp = Date.now();
+
+        // Build nested path: images/{cleanName}/instagram/{timestamp}/
+        const baseImagesDir = join(process.cwd(), 'images');
+        const locationDir = join(baseImagesDir, cleanName);
+        const typeDir = join(locationDir, 'instagram');
+        const timestampDir = join(typeDir, timestamp.toString());
+
+        // Create nested directories
+        if (!existsSync(baseImagesDir)) await mkdir(baseImagesDir);
+        if (!existsSync(locationDir)) await mkdir(locationDir);
+        if (!existsSync(typeDir)) await mkdir(typeDir);
+        if (!existsSync(timestampDir)) await mkdir(timestampDir);
+
+        const locationDirPath = timestampDir;
 
         const savedPaths: string[] = [];
 
@@ -310,25 +392,25 @@ async function handleInstagramMode() {
             try {
                 const imgRes = await fetch(imgUrl);
                 if (!imgRes.ok) throw new Error(`Failed to fetch ${imgUrl}`);
-                
-                // Create a filename: cleaned_name_timestamp_index.jpg
-                const cleanName = name.replace(/[^a-z0-9]/gi, '_').toLowerCase().substring(0, 30);
-                const filename = `${cleanName}_${Date.now()}_${i}.jpg`;
-                const filePath = join(imagesDir, filename);
-                
+
+                const filename = `image_${i}.jpg`;
+                const filePath = join(locationDirPath, filename);
+
                 // Write file using Bun
                 await Bun.write(filePath, await imgRes.blob());
-                
-                savedPaths.push(`images/${filename}`); // Store relative path
-                console.log(`Saved: images/${filename}`);
+
+                // Store relative path with nested structure
+                savedPaths.push(`images/${cleanName}/instagram/${timestamp}/${filename}`);
+                console.log(`Saved: images/${cleanName}/instagram/${timestamp}/${filename}`);
             } catch (err) {
                 console.error(`Error downloading image ${i + 1}:`, err);
             }
         }
 
         if (savedPaths.length > 0) {
-            // Update the entry with image paths and save again
+            // Update the entry with image paths and original URLs
             entry.images = savedPaths;
+            entry.original_image_urls = imageUrls;
             saveLocation(entry);
             console.log('✅ Database updated with local image paths.');
         }
