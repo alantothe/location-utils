@@ -1,9 +1,4 @@
-// Legacy shim that forwards to the reorganized Bun server entrypoint.
-export { startServer } from "./src/main";
-export { getLocationRoutes } from "./src/features/locations/routes/location.routes";
-export { locationsHtmlTemplate } from "./src/features/locations/routes/home.template";
 
-const htmlTemplate = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -475,15 +470,15 @@ const htmlTemplate = `
                     return function(e) {
                         const div = document.createElement('div');
                         div.className = 'relative group';
-                        div.innerHTML = \`
-                            <img src="\${e.target.result}" class="w-full h-24 object-cover rounded-md border border-gray-200">
+                        div.innerHTML = `
+                            <img src="${e.target.result}" class="w-full h-24 object-cover rounded-md border border-gray-200">
                             <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 truncate rounded-b-md">
-                                \${theFile.name}
+                                ${theFile.name}
                             </div>
-                            <button onclick="removeFile(\${index})" class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs font-bold hover:bg-red-600">
+                            <button onclick="removeFile(${index})" class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs font-bold hover:bg-red-600">
                                 ×
                             </button>
-                        \`;
+                        `;
                         preview.appendChild(div);
                     };
                 })(file, i);
@@ -520,7 +515,7 @@ const htmlTemplate = `
             btn.disabled = true;
             btn.innerText = 'Uploading...';
             status.classList.remove('hidden');
-            status.innerText = \`Uploading \${files.length} image(s)...\`;
+            status.innerText = `Uploading ${files.length} image(s)...`;
             status.className = 'text-sm mt-4 text-blue-600';
 
             try {
@@ -651,7 +646,7 @@ const htmlTemplate = `
             const modal = document.getElementById('imageModal');
             const content = document.getElementById('modalContent');
             const folderBtn = document.getElementById('openFolderBtn');
-            
+
             if (!images || images.length === 0) {
                 content.innerHTML = '<p class="text-gray-500 italic">No images downloaded.</p>';
                 folderBtn.classList.add('hidden');
@@ -661,7 +656,7 @@ const htmlTemplate = `
                 // images[0] is like "images/subfolder/img.jpg" or "images/img.jpg"
                 const firstImage = images[0];
                 const parts = firstImage.split('/');
-                
+
                 // If it has a subfolder (parts.length > 2), use that. Otherwise default to 'images'
                 // Example: images/folder_name/file.jpg -> folder path is images/folder_name
                 if (parts.length > 2) {
@@ -669,31 +664,31 @@ const htmlTemplate = `
                 } else {
                     currentFolder = 'images';
                 }
-                
+
                 folderBtn.classList.remove('hidden');
 
                 // Get current origin (e.g. http://localhost:3000)
                 const origin = window.location.origin;
-                
+
                 content.innerHTML = images.map((img, index) => {
                     // Full URL for display and dragging
                     const imgPath = img.startsWith('/') ? img.substring(1) : img;
                     const fullUrl = origin + '/' + imgPath;
-                    
+
                     // Original CDN URL
                     const originalCdnUrl = (originalUrls && originalUrls[index]) ? originalUrls[index] : '';
 
-                    return \`
+                    return `
                     <div class="relative group">
-                        <img src="\${fullUrl}" 
-                             class="w-full h-48 object-cover rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer" 
+                        <img src="${fullUrl}"
+                             class="w-full h-48 object-cover rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer"
                              onclick="window.open(this.src, '_blank')"
                              draggable="true"
-                             ondragstart="handleDragStart(event, '\${fullUrl}')">
-                        
+                             ondragstart="handleDragStart(event, '${fullUrl}')">
+
                         <!-- Copy CDN URL Button -->
-                         <button onclick="handleCopy('\${escapeHtml(originalCdnUrl)}', this, 'bg-indigo-600', 'border-indigo-600')" 
-                            class="\${originalCdnUrl ? '' : 'hidden'} absolute top-2 right-2 bg-white hover:bg-gray-100 text-indigo-600 p-1.5 rounded-md shadow-md opacity-0 group-hover:opacity-100 transition-all border border-gray-200"
+                         <button onclick="handleCopy('${escapeHtml(originalCdnUrl)}', this, 'bg-indigo-600', 'border-indigo-600')"
+                            class="${originalCdnUrl ? '' : 'hidden'} absolute top-2 right-2 bg-white hover:bg-gray-100 text-indigo-600 p-1.5 rounded-md shadow-md opacity-0 group-hover:opacity-100 transition-all border border-gray-200"
                             title="Copy Original CDN Link">
                              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
@@ -705,26 +700,26 @@ const htmlTemplate = `
                             Click to expand
                         </div>
                     </div>
-                \`}).join('');
+                `}).join('');
             }
-            
+
             modal.classList.remove('hidden');
         }
-        
+
         async function handleOpenFolder() {
             if (!currentFolder) return;
-            
+
             try {
                 const btn = document.getElementById('openFolderBtn');
                 const originalText = btn.innerHTML;
                 btn.innerText = 'Opening...';
-                
+
                 await fetch('/api/open-folder', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ folderPath: currentFolder })
                 });
-                
+
                 setTimeout(() => {
                     btn.innerHTML = originalText;
                 }, 1000);
@@ -754,7 +749,7 @@ const htmlTemplate = `
             try {
                 const res = await fetch('/api/locations');
                 if (!res.ok) {
-                    throw new Error(\`Server returned \${res.status} \${res.statusText}\`);
+                    throw new Error(`Server returned ${res.status} ${res.statusText}`);
                 }
 
                 const responseData = await res.json();
@@ -769,7 +764,7 @@ const htmlTemplate = `
                 renderLocations();
             } catch (err) {
                 console.error(err);
-                container.innerHTML = \`<div class="p-8 text-center text-red-500">Error loading data: \${err.message}.<br>Make sure the server is running.</div>\`;
+                container.innerHTML = `<div class="p-8 text-center text-red-500">Error loading data: ${err.message}.<br>Make sure the server is running.</div>`;
             }
         }
 
@@ -785,14 +780,14 @@ const htmlTemplate = `
 
             if (filteredData.length === 0) {
                 const noResultsMessage = currentCategoryFilter !== 'all'
-                    ? \`No \${currentCategoryFilter} locations found.\`
+                    ? `No ${currentCategoryFilter} locations found.`
                     : 'No locations found. Create your first location to get started!';
-                container.innerHTML = \`<div class="text-center p-8 text-gray-400">\${noResultsMessage}</div>\`;
+                container.innerHTML = `<div class="text-center p-8 text-gray-400">${noResultsMessage}</div>`;
                 const totalCount = allData.length;
                 const filterText = currentCategoryFilter !== 'all' && totalCount > 0
-                    ? \` (\${currentCategoryFilter}: 0 of \${totalCount})\`
+                    ? ` (${currentCategoryFilter}: 0 of ${totalCount})`
                     : '';
-                stats.innerText = \`0 locations\${filterText}\`;
+                stats.innerText = `0 locations${filterText}`;
                 return;
             }
 
@@ -822,85 +817,85 @@ const htmlTemplate = `
                 const categoryColor = categoryColors[categoryLabel] || 'bg-gray-100 text-gray-800';
                 const categoryIcon = categoryEmoji[categoryLabel] || '📍';
 
-                return \`
+                return `
                     <div class="glass rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow">
                         <!-- Main Location Header -->
                         <div class="p-5 bg-white">
                             <div class="flex items-start justify-between">
                                 <div class="flex-1">
                                     <div class="flex items-center gap-3 mb-2">
-                                        <h3 class="text-lg font-semibold text-gray-900">\${escapeHtml(loc.name)}</h3>
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium \${categoryColor}">
-                                            \${categoryIcon} \${categoryLabel}
+                                        <h3 class="text-lg font-semibold text-gray-900">${escapeHtml(loc.name)}</h3>
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${categoryColor}">
+                                            ${categoryIcon} ${categoryLabel}
                                         </span>
-                                        \${instagramCount > 0 ? \`
+                                        ${instagramCount > 0 ? `
                                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-pink-100 text-pink-800">
-                                                \${instagramCount} Instagram
+                                                ${instagramCount} Instagram
                                             </span>
-                                        \` : ''}
-                                        \${uploadCount > 0 ? \`
+                                        ` : ''}
+                                        ${uploadCount > 0 ? `
                                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                                                \${uploadCount} Upload\${uploadCount === 1 ? '' : 's'}
+                                                ${uploadCount} Upload${uploadCount === 1 ? '' : 's'}
                                             </span>
-                                        \` : ''}
+                                        ` : ''}
                                     </div>
-                                    <p class="text-sm text-gray-600 mb-2">\${escapeHtml(loc.address)}</p>
-                                    \${hasCoords ? \`
-                                        <p class="text-xs text-gray-400">📍 \${loc.lat.toFixed(5)}, \${loc.lng.toFixed(5)}</p>
-                                    \` : ''}
+                                    <p class="text-sm text-gray-600 mb-2">${escapeHtml(loc.address)}</p>
+                                    ${hasCoords ? `
+                                        <p class="text-xs text-gray-400">📍 ${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}</p>
+                                    ` : ''}
                                 </div>
                                 <div class="flex flex-col gap-2 ml-4">
                                     <div class="flex gap-2">
-                                        \${hasCoords ? \`
-                                            <button onclick="handleCopy('\${loc.lat}', this, 'bg-gray-600', 'border-gray-600')" class="\${btnBase} border-gray-200 text-gray-600 hover:bg-gray-50 w-16" title="Copy Latitude">
+                                        ${hasCoords ? `
+                                            <button onclick="handleCopy('${loc.lat}', this, 'bg-gray-600', 'border-gray-600')" class="${btnBase} border-gray-200 text-gray-600 hover:bg-gray-50 w-16" title="Copy Latitude">
                                                 Lat
                                             </button>
-                                            <button onclick="handleCopy('\${loc.lng}', this, 'bg-gray-600', 'border-gray-600')" class="\${btnBase} border-gray-200 text-gray-600 hover:bg-gray-50 w-16" title="Copy Longitude">
+                                            <button onclick="handleCopy('${loc.lng}', this, 'bg-gray-600', 'border-gray-600')" class="${btnBase} border-gray-200 text-gray-600 hover:bg-gray-50 w-16" title="Copy Longitude">
                                                 Lng
                                             </button>
-                                        \` : ''}
-                                        <button onclick="handleCopy('\${escapeHtml(loc.url)}', this, 'bg-blue-50', 'border-blue-300')"
-                                                class="\${btnBase} border-blue-200 text-blue-600 hover:bg-blue-50 px-4">
+                                        ` : ''}
+                                        <button onclick="handleCopy('${escapeHtml(loc.url)}', this, 'bg-blue-50', 'border-blue-300')"
+                                                class="${btnBase} border-blue-200 text-blue-600 hover:bg-blue-50 px-4">
                                             Maps
                                         </button>
                                     </div>
                                     <div class="flex gap-2">
-                                        <button onclick="openEditMapsModal(\${loc.id}, '\${escapeHtml(loc.name)}')" class="\${btnBase} bg-blue-500 hover:bg-blue-600 text-white border-blue-500 flex-1">
+                                        <button onclick="openEditMapsModal(${loc.id}, '${escapeHtml(loc.name)}')" class="${btnBase} bg-blue-500 hover:bg-blue-600 text-white border-blue-500 flex-1">
                                             ✏️ Edit
                                         </button>
-                                        <button onclick="openAddModal(\${loc.id}, '\${escapeHtml(loc.name)}')" class="\${btnBase} bg-pink-500 hover:bg-pink-600 text-white border-pink-500 flex-1">
+                                        <button onclick="openAddModal(${loc.id}, '${escapeHtml(loc.name)}')" class="${btnBase} bg-pink-500 hover:bg-pink-600 text-white border-pink-500 flex-1">
                                             + Instagram
                                         </button>
-                                        <button onclick="openUploadModal(\${loc.id}, '\${escapeHtml(loc.name)}')" class="\${btnBase} bg-purple-500 hover:bg-purple-600 text-white border-purple-500 flex-1">
+                                        <button onclick="openUploadModal(${loc.id}, '${escapeHtml(loc.name)}')" class="${btnBase} bg-purple-500 hover:bg-purple-600 text-white border-purple-500 flex-1">
                                             + Upload
                                         </button>
                                     </div>
-                                    \${totalContent > 0 ? \`
+                                    ${totalContent > 0 ? `
                                         <div class="flex gap-2 mt-2">
-                                            <button onclick="toggleLocation(\${loc.id})" class="\${btnBase} border-gray-300 text-gray-700 hover:bg-gray-50 w-full">
-                                                \${isExpanded ? '▼ Hide' : '▶ Show'} Content
+                                            <button onclick="toggleLocation(${loc.id})" class="${btnBase} border-gray-300 text-gray-700 hover:bg-gray-50 w-full">
+                                                ${isExpanded ? '▼ Hide' : '▶ Show'} Content
                                             </button>
                                         </div>
-                                    \` : ''}
+                                    ` : ''}
                                 </div>
                             </div>
                         </div>
 
                         <!-- Attached Content (Expandable) -->
-                        \${isExpanded && totalContent > 0 ? \`
+                        ${isExpanded && totalContent > 0 ? `
                             <div class="border-t border-gray-200 bg-gray-50 p-4">
                                 <h4 class="text-sm font-medium text-gray-700 mb-3">Attached Content</h4>
                                 <div class="space-y-3">
-                                    \${(loc.instagram_embeds || []).map(embed => {
+                                    ${(loc.instagram_embeds || []).map(embed => {
                                         const imagesJson = JSON.stringify(embed.images || []).replace(/"/g, '&quot;');
                                         const originalUrlsJson = JSON.stringify(embed.original_image_urls || []).replace(/"/g, '&quot;');
                                         const hasImages = embed.images && embed.images.length > 0;
 
-                                        return \`
+                                        return `
                                             <div class="bg-white rounded-lg p-3 flex items-center gap-3 shadow-sm">
-                                                \${hasImages ? \`
-                                                    <img src="/\${embed.images[0]}" class="h-16 w-16 object-cover rounded-md border border-gray-200">
-                                                \` : \`
+                                                ${hasImages ? `
+                                                    <img src="/${embed.images[0]}" class="h-16 w-16 object-cover rounded-md border border-gray-200">
+                                                ` : `
                                                     <div class="h-16 w-16 bg-pink-50 rounded-md flex items-center justify-center text-pink-300 border border-pink-100">
                                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                             <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
@@ -908,75 +903,75 @@ const htmlTemplate = `
                                                             <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
                                                         </svg>
                                                     </div>
-                                                \`}
+                                                `}
                                                 <div class="flex-1 min-w-0">
-                                                    <p class="text-sm font-medium text-gray-900 truncate">\${escapeHtml(embed.name)}</p>
-                                                    <p class="text-xs text-gray-500 truncate">\${embed.url}</p>
+                                                    <p class="text-sm font-medium text-gray-900 truncate">${escapeHtml(embed.name)}</p>
+                                                    <p class="text-xs text-gray-500 truncate">${embed.url}</p>
                                                 </div>
                                                 <div class="flex gap-2">
-                                                    <button onclick="handleCopy('\${embed.url}', this, 'bg-pink-600', 'border-pink-600')" class="\${btnBase} border-pink-200 text-pink-600 hover:bg-pink-50 w-16 text-xs">
+                                                    <button onclick="handleCopy('${embed.url}', this, 'bg-pink-600', 'border-pink-600')" class="${btnBase} border-pink-200 text-pink-600 hover:bg-pink-50 w-16 text-xs">
                                                         Link
                                                     </button>
-                                                    \${embed.embed_code ? \`
-                                                        <button onclick="handleCopy(this.getAttribute('data-embed'), this, 'bg-purple-600', 'border-purple-600')" class="\${btnBase} border-purple-200 text-purple-600 hover:bg-purple-50 w-16 text-xs" data-embed="\${escapeHtml(embed.embed_code)}">
+                                                    ${embed.embed_code ? `
+                                                        <button onclick="handleCopy(this.getAttribute('data-embed'), this, 'bg-purple-600', 'border-purple-600')" class="${btnBase} border-purple-200 text-purple-600 hover:bg-purple-50 w-16 text-xs" data-embed="${escapeHtml(embed.embed_code)}">
                                                             Embed
                                                         </button>
-                                                    \` : ''}
-                                                    \${hasImages ? \`
-                                                        <button onclick="openModal(\${imagesJson}, \${originalUrlsJson})" class="\${btnBase} border-indigo-200 text-indigo-600 hover:bg-indigo-50 w-20 text-xs">
-                                                            \${embed.images.length} Img
+                                                    ` : ''}
+                                                    ${hasImages ? `
+                                                        <button onclick="openModal(${imagesJson}, ${originalUrlsJson})" class="${btnBase} border-indigo-200 text-indigo-600 hover:bg-indigo-50 w-20 text-xs">
+                                                            ${embed.images.length} Img
                                                         </button>
-                                                    \` : ''}
+                                                    ` : ''}
                                                 </div>
                                             </div>
-                                        \`;
+                                        `;
                                     }).join('')}
 
-                                    \${(loc.uploads || []).map(upload => {
+                                    ${(loc.uploads || []).map(upload => {
                                         const imagesJson = JSON.stringify(upload.images || []).replace(/"/g, '&quot;');
                                         const hasImages = upload.images && upload.images.length > 0;
 
-                                        return \`
+                                        return `
                                             <div class="bg-white rounded-lg p-3 flex items-center gap-3 shadow-sm">
-                                                \${hasImages ? \`
-                                                    <img src="/\${upload.images[0]}" class="h-16 w-16 object-cover rounded-md border border-gray-200">
-                                                \` : \`
+                                                ${hasImages ? `
+                                                    <img src="/${upload.images[0]}" class="h-16 w-16 object-cover rounded-md border border-gray-200">
+                                                ` : `
                                                     <div class="h-16 w-16 bg-purple-50 rounded-md flex items-center justify-center text-purple-300 border border-purple-100">
                                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                             <path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                                                         </svg>
                                                     </div>
-                                                \`}
+                                                `}
                                                 <div class="flex-1 min-w-0">
-                                                    <p class="text-sm font-medium text-gray-900 truncate">\${escapeHtml(upload.name)}</p>
-                                                    <p class="text-xs text-gray-500">\${upload.images.length} image(s)</p>
+                                                    <p class="text-sm font-medium text-gray-900 truncate">${escapeHtml(upload.name)}</p>
+                                                    <p class="text-xs text-gray-500">${upload.images.length} image(s)</p>
                                                 </div>
                                                 <div class="flex gap-2">
-                                                    \${hasImages ? \`
-                                                        <button onclick="openModal(\${imagesJson}, [])" class="\${btnBase} border-purple-200 text-purple-600 hover:bg-purple-50 w-20 text-xs">
-                                                            \${upload.images.length} Img
+                                                    ${hasImages ? `
+                                                        <button onclick="openModal(${imagesJson}, [])" class="${btnBase} border-purple-200 text-purple-600 hover:bg-purple-50 w-20 text-xs">
+                                                            ${upload.images.length} Img
                                                         </button>
-                                                    \` : ''}
+                                                    ` : ''}
                                                 </div>
                                             </div>
-                                        \`;
+                                        `;
                                     }).join('')}
                                 </div>
                             </div>
-                        \` : ''}
+                        ` : ''}
                     </div>
-                \`;
+                `;
             }).join('');
 
             // Update stats with filter info
             const totalCount = allData.length;
             const filteredCount = filteredData.length;
             const filterText = currentCategoryFilter !== 'all'
-                ? \` (\${currentCategoryFilter}: \${filteredCount} of \${totalCount})\`
+                ? ` (${currentCategoryFilter}: ${filteredCount} of ${totalCount})`
                 : '';
-            stats.innerText = \`\${filteredCount} location\${filteredCount === 1 ? '' : 's'}\${filterText}\`;
+            stats.innerText = `${filteredCount} location${filteredCount === 1 ? '' : 's'}${filterText}`;
         }
-        
+
         async function handleCopy(text, btn, activeBgClass, activeBorderClass) {
             // Helper to decode if it's from data attribute
             let contentToCopy = text;
@@ -988,12 +983,12 @@ const htmlTemplate = `
 
             try {
                 await navigator.clipboard.writeText(contentToCopy);
-                
+
                 // Save original text and classes on the element itself if not already saved
                 if (!btn.hasAttribute('data-original-text')) {
                     btn.setAttribute('data-original-text', btn.innerText);
                 }
-                
+
                 // We use dataset to check if we're already in 'copied' state to avoid overwriting original classes with active ones
                 if (!btn.dataset.isCopied) {
                      btn.setAttribute('data-original-classes', btn.className);
@@ -1001,13 +996,13 @@ const htmlTemplate = `
 
                 const originalText = btn.getAttribute('data-original-text');
                 const savedClasses = btn.getAttribute('data-original-classes');
-                
+
                 // Mark as copied state
                 btn.dataset.isCopied = "true";
 
                 // Change state
                 btn.innerText = 'Copied!';
-                btn.className = \`inline-flex items-center justify-center px-3 py-1.5 border rounded-md transition-all text-sm font-medium w-24 text-center text-white \${activeBgClass} \${activeBorderClass}\`;
+                btn.className = `inline-flex items-center justify-center px-3 py-1.5 border rounded-md transition-all text-sm font-medium w-24 text-center text-white ${activeBgClass} ${activeBorderClass}`;
 
                 // Clear any existing timeout to restart the timer if clicked again
                 if (btn.dataset.timeoutId) {
@@ -1020,7 +1015,7 @@ const htmlTemplate = `
                     btn.dataset.isCopied = ""; // Reset state
                     btn.dataset.timeoutId = "";
                 }, 1500);
-                
+
                 btn.dataset.timeoutId = timeoutId.toString();
 
             } catch (err) {
@@ -1033,10 +1028,10 @@ const htmlTemplate = `
             e.dataTransfer.effectAllowed = 'copy';
             e.dataTransfer.setData('text/plain', url);
             e.dataTransfer.setData('text/uri-list', url);
-            
+
             // Try to download the image on drop if supported (Chrome/Edge)
             const fileName = url.split('/').pop();
-            e.dataTransfer.setData('DownloadURL', \`image/jpeg:\${fileName}:\${url}\`);
+            e.dataTransfer.setData('DownloadURL', `image/jpeg:${fileName}:${url}`);
         }
 
         function escapeHtml(text) {
@@ -1054,4 +1049,3 @@ const htmlTemplate = `
     </script>
 </body>
 </html>
-`;

@@ -1,9 +1,10 @@
 {
   "name": "url-util",
-  "module": "index.ts",
+  "module": "src/main.ts",
   "type": "module",
   "scripts": {
-    "start": "bun run index.ts"
+    "start": "bun run src/main.ts",
+    "cli": "bun run src/cli.ts"
   },
   "devDependencies": {
     "@types/bun": "latest",
