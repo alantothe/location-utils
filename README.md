@@ -32,18 +32,9 @@ bun start
 
 ### Workflow
 
-1. **Create Locations**: Use Single Mode or Batch Mode to create locations with Google Maps URLs
-2. **Add Instagram Embeds**: Select "Extract from Instagram Embed" and choose a location to attach the embed
-3. **View & Manage**: Use the Web Interface or View History to see your locations with their Instagram content
-
-### CLI Modes
-
-- **Single Location**: Create one location at a time with name and address
-- **Batch Mode**: Import multiple locations from CSV or TXT files
-- **Extract from Instagram Embed**: Add Instagram content to an existing location
-- **View Database History**: See all locations with their Instagram embeds in a hierarchical view
-- **Start Web Interface**: Launch the web dashboard for visual management
-- **Kill / Clear All Data**: Reset the database
+1. **Create Locations**: Use the web interface to create locations with Google Maps URLs
+2. **Add Instagram Embeds**: Click "Add Instagram" on any location to attach Instagram content
+3. **View & Manage**: Use the web interface to see and manage all your locations with their Instagram content
 
 ### Batch File Formats
 

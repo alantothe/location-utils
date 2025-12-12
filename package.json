@@ -3,8 +3,7 @@
   "module": "src/server/main.ts",
   "type": "module",
   "scripts": {
-    "start": "bun run src/server/main.ts",
-    "cli": "bun run src/server/cli.ts"
+    "start": "bun run src/server/main.ts"
   },
   "devDependencies": {
     "@types/bun": "latest",
