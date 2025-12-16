@@ -1,4 +1,4 @@
-import type { CreateMapsRequest, LocationEntry, UpdateMapsRequest } from "../../../models/location";
+import type { CreateMapsRequest, Location, UpdateMapsRequest } from "../../../models/location";
 import {
   createFromMaps,
   generateGoogleMapsUrl,
@@ -9,9 +9,9 @@ import {
   saveLocation,
   updateLocationById,
 } from "../../../repositories/location.repository";
-import { validateCategory } from "../../../utils/category-utils";
+import { validateCategory, validateCategoryWithDefault } from "../../../utils/category-utils";
 
-export async function addMapsLocation(payload: CreateMapsRequest, apiKey?: string): Promise<LocationEntry> {
+export async function addMapsLocation(payload: CreateMapsRequest, apiKey?: string): Promise<Location> {
   if (!payload.name || !payload.address) {
     throw new Error("Name and address required");
   }
@@ -25,7 +25,7 @@ export async function addMapsLocation(payload: CreateMapsRequest, apiKey?: strin
   return entry;
 }
 
-export async function updateMapsLocation(payload: UpdateMapsRequest, apiKey?: string): Promise<LocationEntry> {
+export async function updateMapsLocation(payload: UpdateMapsRequest, apiKey?: string): Promise<Location> {
   if (!payload.id) {
     throw new Error("ID required");
   }
@@ -35,8 +35,8 @@ export async function updateMapsLocation(payload: UpdateMapsRequest, apiKey?: st
   }
 
   const currentLocation = getLocationById(payload.id);
-  if (!currentLocation || currentLocation.type !== "maps") {
-    throw new Error("Location not found or cannot be edited");
+  if (!currentLocation) {
+    throw new Error("Location not found");
   }
 
   // Validate category or default to "attractions" if not provided

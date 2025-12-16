@@ -31,7 +31,7 @@ Comprehensive walkthrough of the current backend (Bun + Hono) plus the supportin
 
 ### Models & Config
 - `src/features/locations/models/location.ts`
-  - Defines types (`LocationEntry`, `LocationWithChildren`, taxonomy types, enums). `LocationEntry` includes contact fields and `locationKey`, but these fields are not persisted by the repository.
+  - Defines types (`Location`, `InstagramEmbed`, `Upload`, `LocationWithNested`, taxonomy types). Contact fields and `locationKey` are included in the `Location` type.
 - `src/features/locations/config/location-fields.config.ts`
   - Describes contact info form metadata (likely for a CMS/admin UI), mapping country codes from `src/shared/utils/country-codes.ts`.
 
@@ -39,9 +39,8 @@ Comprehensive walkthrough of the current backend (Bun + Hono) plus the supportin
 - `controllers/locations/index.ts`
   - `getLocations(c)`: returns all map locations with attached instagram/uploads (via `listLocations`) plus `cwd`. Called by UI to render cards and nested media.
 - `controllers/locations/services/location-query.service.ts`
-  - `listLocations()`: pulls all records from the repository, filters roots to `type === "maps"` or `!parent_id`, and attaches two child arrays: `instagram_embeds` and `uploads`.
-  - Interaction: relies on `getAllLocations()`; grouping is purely in memory.
-  - Optimization: parent detection ignores non-map roots with `parent_id = null` but `type !== "maps"` (they will be treated as top-level). Consider filtering strictly on `type === "maps"` for clarity.
+  - `listLocations()`: joins locations from normalized tables (`locations`, `instagram_embeds`, `uploads`) and attaches two child arrays: `instagram_embeds` and `uploads`.
+  - Interaction: relies on `getAllLocations()` and separate queries for embeds and uploads; grouping is done in memory.
 - `controllers/maps/index.ts`
   - `postAddMaps(c)`: validates `name`/`address`, rejects any extra fields, passes trimmed payload to `addMapsLocation`, returns JSON.
   - `postUpdateMaps(c)`: validates `id` and `title`, calls `updateMapsLocation`.
