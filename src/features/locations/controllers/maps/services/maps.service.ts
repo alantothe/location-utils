@@ -9,15 +9,17 @@ import {
   saveLocation,
   updateLocationById,
 } from "../../../repositories/location.repository";
-
-const VALID_CATEGORIES = ["dining", "accommodations", "attractions", "nightlife"];
+import { validateCategory } from "../../../utils/category-utils";
 
 export async function addMapsLocation(payload: CreateMapsRequest, apiKey?: string): Promise<LocationEntry> {
   if (!payload.name || !payload.address) {
     throw new Error("Name and address required");
   }
 
-  const entry = await createFromMaps(payload.name, payload.address, apiKey, "attractions", null);
+  // Validate category
+  const category = validateCategory(payload.category);
+
+  const entry = await createFromMaps(payload.name, payload.address, apiKey, category);
 
   saveLocation(entry);
   return entry;
@@ -37,7 +39,8 @@ export async function updateMapsLocation(payload: UpdateMapsRequest, apiKey?: st
     throw new Error("Location not found or cannot be edited");
   }
 
-  const category = payload.category && VALID_CATEGORIES.includes(payload.category) ? payload.category : "attractions";
+  // Validate category or default to "attractions" if not provided
+  const category = validateCategoryWithDefault(payload.category);
 
   let newUrl = currentLocation.url;
   let lat = currentLocation.lat;
@@ -77,7 +80,6 @@ export async function updateMapsLocation(payload: UpdateMapsRequest, apiKey?: st
     title: payload.title,
     address,
     category,
-    dining_type: payload.dining_type,
     url: newUrl,
     lat,
     lng,

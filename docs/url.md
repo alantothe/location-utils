@@ -16,6 +16,7 @@ http://localhost:3000
 - `POST /api/add-instagram` - Add Instagram embed
 - `POST /api/add-upload` - Upload files
 - `POST /api/open-folder` - Open system folder
+- `GET /api/clear-db` - Clear all location data
 
 ### Location Hierarchy
 - `GET /api/location-hierarchy` (and legacy `/api/location-taxonomy`) - All hierarchy data
@@ -29,7 +30,7 @@ http://localhost:3000
 ## Location Management Endpoints
 
 ### GET /api/locations
-Retrieves all locations with their associated Instagram embeds and uploads.
+Retrieves all locations with their associated Instagram embeds and uploads. The response now only returns the core fields for each location plus the nested child arrays.
 
 **Response:**
 ```json
@@ -39,32 +40,41 @@ Retrieves all locations with their associated Instagram embeds and uploads.
       "id": 1,
       "name": "Location Name",
       "title": "Display Title",
-      "address": "123 Main St",
+      "address": "123 Main St, City, Country",
       "url": "https://maps.google.com/...",
-      "embed_code": null,
-      "instagram": null,
-      "images": ["path/to/image.jpg"],
-      "original_image_urls": ["https://..."],
+      "images": [],
       "lat": 40.7128,
       "lng": -74.0060,
-      "parent_id": null,
-      "type": "maps",
-      "category": "dining",
-      "dining_type": "restaurant",
-      "contactAddress": "123 Main St, City, State",
-      "countryCode": "+1",
-      "phoneNumber": "555-1234",
-      "website": "https://example.com",
-      "locationKey": "country|city|neighborhood",
-      "instagram_embeds": [...],
-      "uploads": [...]
+      "category": "attractions",
+      "dining_type": null,
+      "created_at": "2024-01-15T10:30:00.000Z",
+      "instagram_embeds": [
+        {
+          "id": 2,
+          "location_id": 1,
+          "username": "@username",
+          "url": "https://www.instagram.com/p/ABC123/",
+          "embed_code": "<blockquote class=\"instagram-media\">...</blockquote>",
+          "images": [],
+          "created_at": "2024-01-15T11:00:00.000Z"
+        }
+      ],
+      "uploads": [
+        {
+          "id": 3,
+          "location_id": 1,
+          "photographerCredit": "Jane Doe Photography",
+          "images": [],
+          "created_at": "2024-01-15T11:30:00.000Z"
+        }
+      ]
     }
   ],
   "cwd": "/current/working/directory"
 }
 ```
-- `instagram_embeds` and `uploads` only appear on parent `maps` locations.
-- `cwd` reflects the server process working directory.
+- `instagram_embeds` and `uploads` are always present as arrays (empty when no children)
+- `cwd` reflects the server process working directory
 
 ### POST /api/add-maps
 Creates a new maps location entry.
@@ -88,24 +98,19 @@ Creates a new maps location entry.
   "entry": {
     "id": 1,
     "name": "Location Name",
-    "title": "Display Title",
-    "address": "123 Main St",
+    "title": null,
+    "address": "123 Main St, City, State",
     "url": "https://maps.google.com/...",
-    "embed_code": null,
-    "instagram": null,
     "images": [],
-    "original_image_urls": [],
     "lat": 40.7128,
     "lng": -74.0060,
-    "parent_id": null,
-    "type": "maps",
-    "category": "dining",
-    "dining_type": "restaurant",
+    "category": "attractions",
+    "dining_type": null,
     "contactAddress": "123 Main St, City, State",
     "countryCode": "+1",
     "phoneNumber": "555-1234",
     "website": "https://example.com",
-    "locationKey": "country|city|neighborhood"
+    "locationKey": "colombia|bogota|chapinero"
   }
 }
 ```
@@ -117,11 +122,11 @@ Updates an existing maps location entry.
 ```json
 {
   "id": 1,
-  "name": "Updated Location Name",
   "title": "Updated Display Title",
+  "name": "Updated Location Name",
   "address": "Updated Address",
-  "category": "dining|accommodations|attractions|nightlife",
-  "dining_type": "restaurant|cafe|bar|etc",
+  "category": "dining",
+  "dining_type": "restaurant",
   "contactAddress": "Updated contact address",
   "countryCode": "+1",
   "phoneNumber": "555-1234",
@@ -130,9 +135,9 @@ Updates an existing maps location entry.
 }
 ```
 
-- Required: `id`, `title` (must be present even if unchanged)
-- Optional: `name`, `address`, `category` (defaults to `attractions` if not one of the allowed categories), `dining_type`, `contactAddress`, `countryCode`, `phoneNumber`, `website`, `locationKey`.
-- Behavior: The target entry must be a `maps` location. Supply both `name` and `address` together to regenerate the Google Maps URL; geocoding and coordinate updates only occur when the address changes and `GOOGLE_MAPS_API_KEY` is configured. Other fields are updated directly when provided.
+- Required: `id`, `title`
+- Optional: `name`, `address`, `category`, `dining_type`, `contactAddress`, `countryCode`, `phoneNumber`, `website`, `locationKey`
+- Behavior: Supply both `name` and `address` together to regenerate the Google Maps URL. When the address changes and `GOOGLE_MAPS_API_KEY` is configured, the server will re-geocode and update coordinates. The `category` defaults to `attractions` if not provided or invalid. Other fields are updated directly when provided.
 
 **Response:**
 ```json
@@ -144,21 +149,16 @@ Updates an existing maps location entry.
     "title": "Updated Display Title",
     "address": "Updated Address",
     "url": "https://maps.google.com/...",
-    "embed_code": null,
-    "instagram": null,
     "images": [],
-    "original_image_urls": [],
     "lat": 40.7128,
     "lng": -74.0060,
-    "parent_id": null,
-    "type": "maps",
     "category": "dining",
     "dining_type": "restaurant",
     "contactAddress": "Updated contact address",
     "countryCode": "+1",
     "phoneNumber": "555-1234",
     "website": "https://example.com",
-    "locationKey": "country|city|neighborhood"
+    "locationKey": "colombia|bogota|chapinero"
   }
 }
 ```
@@ -176,7 +176,61 @@ Adds an Instagram embed to an existing location.
 
 - Required: `embedCode` (full Instagram embed HTML containing `data-instgrm-permalink`), `locationId` (an existing parent location)
 - Optional: none
-- Behavior: Creates a child entry of type `instagram` under the parent. The server attempts to download media via RapidAPI and writes files under `src/data/images/{location}/instagram/{timestamp}/image_{n}.jpg` (the returned `images` array contains these paths). If media download fails, the embed entry is still created without images.
+- Behavior: Creates an Instagram embed entry linked to the parent location via `location_id`. The server extracts the Instagram permalink and author information from the embed code. The `username` field is populated with the extracted username (e.g., `@username`) from the embed code's "A post shared by..." text. If username extraction fails, the request will be rejected with an error message. The server attempts to download media via RapidAPI and saves images to `src/data/images/{location}/instagram/{timestamp}/image_{n}.jpg`. The `images` array contains local file paths, and `original_image_urls` contains the original Instagram URLs. If media download fails, the embed entry is still created without images.
+
+#### Important: JSON Escaping for Embed Codes
+
+When submitting Instagram embed codes via API (curl, Postman, etc.), the HTML content contains double quotes that must be properly escaped in JSON.
+
+**Common Mistake:**
+```bash
+# ❌ Wrong - Unescaped quotes break JSON parsing
+{
+  "embedCode": "<blockquote class="instagram-media">..."
+}
+```
+
+**Correct Approaches:**
+
+**Option 1: Escape quotes with backslashes**
+```bash
+curl -X POST http://localhost:3000/api/add-instagram \
+  -H "Content-Type: application/json" \
+  -d '{
+    "locationId": 1,
+    "embedCode": "<blockquote class=\"instagram-media\" data-instgrm-permalink=\"https://www.instagram.com/p/ABC123/\">...</blockquote>"
+  }'
+```
+
+**Option 2: Use a JSON file (Recommended)**
+```bash
+# Create embed.json with properly formatted content
+{
+  "locationId": 1,
+  "embedCode": "<blockquote class=\"instagram-media\">...</blockquote>"
+}
+
+# Then submit it
+curl -X POST http://localhost:3000/api/add-instagram \
+  -H "Content-Type: application/json" \
+  -d @embed.json
+```
+
+**Option 3: Use helper script (see scripts/add-instagram-embed.ts)**
+```bash
+bun run scripts/add-instagram-embed.ts --location-id 1 --embed-file embed.html
+```
+
+#### Troubleshooting
+
+**Error: "JSON Parse error: Unrecognized token"**
+- Cause: Unescaped quotes in embed code breaking JSON syntax
+- Solution: Use one of the escaping methods above
+
+**Error: "Could not extract username from embed code"**
+- Cause: Embed code is missing the "A post shared by @username" section
+- Solution: Ensure you copy the **complete** Instagram embed code (not a truncated preview)
+- How to verify: Search for "A post shared by" in your embed code text
 
 **Response:**
 ```json
@@ -184,25 +238,14 @@ Adds an Instagram embed to an existing location.
   "success": true,
   "entry": {
     "id": 2,
-    "name": "Instagram Embed",
-    "title": null,
-    "address": "",
-    "url": "",
+    "location_id": 1,
+    "username": "@username",
+    "url": "https://www.instagram.com/p/ABC123/",
     "embed_code": "<blockquote class=\"instagram-media\">...</blockquote>",
-    "instagram": null,
-    "images": [],
-    "original_image_urls": [],
-    "lat": null,
-    "lng": null,
-    "parent_id": 1,
-    "type": "instagram",
-    "category": null,
-    "dining_type": null,
-    "contactAddress": null,
-    "countryCode": null,
-    "phoneNumber": null,
-    "website": null,
-    "locationKey": null
+    "instagram": "https://www.instagram.com/username/",
+    "images": ["src/data/images/location_name/instagram/1234567890/image_0.jpg"],
+    "original_image_urls": ["https://instagram.com/..."],
+    "created_at": "2024-01-15T11:00:00.000Z"
   }
 }
 ```
@@ -213,9 +256,20 @@ Uploads files to an existing location.
 **Request Type:** `multipart/form-data`
 
 **Form Fields:**
-- Required: `locationId` or `parentId` (numeric ID of an existing location), `files` (one or more files)
+- Required: `locationId` (numeric ID of an existing location), `files` (one or more files)
+- Optional: `photographerCredit` (text attribution for the photographer, can be empty)
+- Note: The field `parentId` is also accepted for backward compatibility, but `locationId` is preferred
 - Validation: Only JPEG, PNG, WebP, and GIF files are accepted; max 10MB per file; max 50MB per request; up to 20 files per upload. An empty file list is rejected.
 - Behavior: Files are stored under `src/data/images/{location}/uploads/{timestamp}/image_{n}.{ext}` and the saved paths are echoed in the response.
+
+**Example Request:**
+```bash
+curl -X POST http://localhost:3000/api/add-upload \
+  -F "locationId=1" \
+  -F "photographerCredit=Jane Doe Photography" \
+  -F "files=@/path/to/image1.jpg" \
+  -F "files=@/path/to/image2.jpg"
+```
 
 **Response:**
 ```json
@@ -223,28 +277,15 @@ Uploads files to an existing location.
   "success": true,
   "entry": {
     "id": 3,
-    "name": "Uploaded Files",
-    "title": null,
-    "address": "",
-    "url": "",
-    "embed_code": null,
-    "instagram": null,
-    "images": ["path/to/uploaded/image.jpg"],
-    "original_image_urls": [],
-    "lat": null,
-    "lng": null,
-    "parent_id": 1,
-    "type": "upload",
-    "category": null,
-    "dining_type": null,
-    "contactAddress": null,
-    "countryCode": null,
-    "phoneNumber": null,
-    "website": null,
-    "locationKey": null
+    "location_id": 1,
+    "photographerCredit": "Jane Doe Photography",
+    "images": ["src/data/images/location_name/uploads/1234567890/image_0.jpg"],
+    "created_at": "2024-01-15T11:30:00.000Z"
   }
 }
 ```
+
+**Note:** If `photographerCredit` is not provided or is an empty string, the field will be `null` in the response.
 
 ### POST /api/open-folder
 Opens a folder in the system's file explorer.
@@ -264,6 +305,27 @@ Opens a folder in the system's file explorer.
   "success": true
 }
 ```
+
+### GET /api/clear-db
+Clears all location data from the database (locations, instagram_embeds, and uploads tables). This endpoint also clears the legacy unified table if it exists, and runs VACUUM to reclaim disk space.
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Database cleared successfully (locations, instagram_embeds, uploads)"
+}
+```
+
+**Error Response:**
+```json
+{
+  "success": false,
+  "error": "Error message"
+}
+```
+
+**Note:** This operation cannot be undone. Use with caution. File system images are NOT deleted - only database records are removed.
 
 ## Location Hierarchy Endpoints
 

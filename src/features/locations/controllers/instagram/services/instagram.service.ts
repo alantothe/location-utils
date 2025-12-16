@@ -1,11 +1,12 @@
 import { existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
-import type { AddInstagramRequest, LocationEntry } from "../../../models/location";
+import type { AddInstagramRequest, InstagramEmbed } from "../../../models/location";
 import { createFromInstagram, extractInstagramData } from "../../../services/location.helper";
-import { getLocationById, saveLocation } from "../../../repositories/location.repository";
+import { getLocationById } from "../../../repositories/location.repository";
+import { saveInstagramEmbed, getInstagramEmbedById } from "../../../repositories/instagram-embed.repository";
 
-export async function addInstagramEmbed(payload: AddInstagramRequest): Promise<LocationEntry> {
+export async function addInstagramEmbed(payload: AddInstagramRequest): Promise<InstagramEmbed> {
   const { embedCode, locationId } = payload;
   if (!embedCode) {
     throw new Error("Embed code required");
@@ -19,13 +20,21 @@ export async function addInstagramEmbed(payload: AddInstagramRequest): Promise<L
     throw new Error("Parent location not found");
   }
 
-  const { url: instaUrl } = extractInstagramData(embedCode);
+  const { url: instaUrl, author } = extractInstagramData(embedCode);
   if (!instaUrl) {
     throw new Error("Invalid embed code");
   }
 
+  // Validate that we can extract username from embed code
+  if (!author) {
+    throw new Error("Could not extract username from embed code. Please ensure you copied the complete Instagram embed code including the 'A post shared by' section.");
+  }
+
   const entry = createFromInstagram(embedCode, locationId);
-  const savedId = saveLocation(entry);
+  const savedId = saveInstagramEmbed(entry);
+  if (typeof savedId === "number") {
+    entry.id = savedId;
+  }
 
   const timestamp = Date.now();
   const cleanName = parentLocation.name.replace(/[^a-z0-9]/gi, "_").toLowerCase().substring(0, 30);
@@ -100,7 +109,7 @@ export async function addInstagramEmbed(payload: AddInstagramRequest): Promise<L
       if (savedPaths.length > 0) {
         entry.images = savedPaths;
         entry.original_image_urls = imageUrls;
-        saveLocation(entry);
+        saveInstagramEmbed(entry);
       }
     }
   } catch (error) {
@@ -108,7 +117,7 @@ export async function addInstagramEmbed(payload: AddInstagramRequest): Promise<L
   }
 
   if (typeof savedId === "number") {
-    const saved = getLocationById(savedId);
+    const saved = getInstagramEmbedById(savedId);
     if (saved) return saved;
   }
   return entry;

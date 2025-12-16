@@ -1,18 +1,23 @@
 import { existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
-import type { LocationEntry } from "../../../models/location";
-import { getLocationById, saveLocation } from "../../../repositories/location.repository";
+import type { Upload } from "../../../models/location";
+import { getLocationById } from "../../../repositories/location.repository";
+import { saveUpload } from "../../../repositories/upload.repository";
 import { createFromUpload } from "../../../services/location.helper";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_TOTAL_SIZE = 50 * 1024 * 1024;
 const MAX_FILES = 20;
 
-export async function addUploadFiles(parentId: number, files: File[]): Promise<LocationEntry> {
-  if (!parentId) throw new Error("Location ID required");
+export async function addUploadFiles(
+  locationId: number,
+  files: File[],
+  photographerCredit?: string | null
+): Promise<Upload> {
+  if (!locationId) throw new Error("Location ID required");
 
-  const parentLocation = getLocationById(parentId);
+  const parentLocation = getLocationById(locationId);
   if (!parentLocation) {
     throw new Error("Parent location not found");
   }
@@ -44,8 +49,13 @@ export async function addUploadFiles(parentId: number, files: File[]): Promise<L
   }
 
   const timestamp = Date.now();
-  const entry = createFromUpload(parentId, timestamp);
-  saveLocation(entry);
+  const entry = createFromUpload(locationId, photographerCredit);
+  const savedId = saveUpload(entry);
+  if (typeof savedId === 'number') {
+    entry.id = savedId;
+  } else {
+    throw new Error("Failed to save upload entry");
+  }
 
   const cleanName = parentLocation.name.replace(/[^a-z0-9]/gi, "_").toLowerCase().substring(0, 30);
   const baseImagesDir = join(process.cwd(), "images");
@@ -70,7 +80,7 @@ export async function addUploadFiles(parentId: number, files: File[]): Promise<L
 
   if (savedPaths.length > 0) {
     entry.images = savedPaths;
-    saveLocation(entry);
+    saveUpload(entry);
   }
 
   return entry;

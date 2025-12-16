@@ -13,7 +13,7 @@ function mapHierarchyRow(row: any): LocationHierarchy {
     country: row.country,
     city: row.city,
     neighborhood: row.neighborhood,
-    locationKey: row.location_key,
+    locationKey: row.locationKey,
   };
 }
 
@@ -23,9 +23,9 @@ function mapHierarchyRow(row: any): LocationHierarchy {
 export function getAllLocationHierarchy(): LocationHierarchy[] {
   const db = getDb();
   const query = db.query(`
-    SELECT id, country, city, neighborhood, location_key
+    SELECT id, country, city, neighborhood, locationKey
     FROM location_taxonomy
-    ORDER BY location_key
+    ORDER BY locationKey
   `);
   const rows = query.all() as any[];
   return rows.map(mapHierarchyRow);

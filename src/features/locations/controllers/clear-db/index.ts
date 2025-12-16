@@ -5,17 +5,42 @@ export async function clearDatabase(c: Context) {
   try {
     const db = getDb();
 
-    // Clear both tables
-    db.run("DELETE FROM location");
-    db.run("DELETE FROM location_taxonomy");
+    // Discover available tables so we can support both old and new schemas
+    const tableRows = db
+      .query("SELECT name FROM sqlite_master WHERE type='table'")
+      .all() as { name: string }[];
+    const tables = new Set(tableRows.map((row) => row.name));
 
-    // Reset auto-increment counters
-    db.run("DELETE FROM sqlite_sequence WHERE name='location'");
-    db.run("DELETE FROM sqlite_sequence WHERE name='location_taxonomy'");
+    // New normalized tables
+    if (tables.has("locations")) {
+      db.run("DELETE FROM locations");
+      db.run("DELETE FROM sqlite_sequence WHERE name='locations'");
+    }
+    if (tables.has("instagram_embeds")) {
+      db.run("DELETE FROM instagram_embeds");
+      db.run("DELETE FROM sqlite_sequence WHERE name='instagram_embeds'");
+    }
+    if (tables.has("uploads")) {
+      db.run("DELETE FROM uploads");
+      db.run("DELETE FROM sqlite_sequence WHERE name='uploads'");
+    }
+
+    // Legacy single table schema
+    if (tables.has("location")) {
+      db.run("DELETE FROM location");
+      db.run("DELETE FROM sqlite_sequence WHERE name='location'");
+    }
+
+    // Clean up file size after mass deletes
+    db.run("VACUUM");
+
+    const clearedTables = Array.from(tables).filter((name) =>
+      ["locations", "instagram_embeds", "uploads", "location"].includes(name)
+    );
 
     return c.json({
       success: true,
-      message: "Database cleared successfully",
+      message: `Database cleared successfully${clearedTables.length ? ` (${clearedTables.join(", ")})` : ""}`,
     });
   } catch (error) {
     console.error("Error clearing database:", error);

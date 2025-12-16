@@ -67,10 +67,14 @@ export interface LocationEntry {
   original_image_urls?: string[];
   lat?: number | null;
   lng?: number | null;
+  /**
+   * Parent location ID.
+   * - MUST be null/undefined for type='maps'
+   * - MUST be set for type='instagram' and type='upload'
+   */
   parent_id?: number | null;
   type?: LocationType;
   category?: LocationCategory;
-  dining_type?: DiningType | null;
   // Contact Information fields
   contactAddress?: string | null;
   countryCode?: string | null;
@@ -85,9 +89,71 @@ export interface LocationWithChildren extends LocationEntry {
   uploads?: LocationEntry[];
 }
 
+// ===== NEW NORMALIZED TYPES =====
+// These will replace LocationEntry after migration
+
+/**
+ * Location (replaces type='maps' entries from old LocationEntry)
+ * Represents actual physical locations (restaurants, attractions, etc.)
+ */
+export interface Location {
+  id?: number;
+  name: string;
+  title?: string | null;
+  address: string;
+  url: string;
+  lat?: number | null;
+  lng?: number | null;
+  category?: LocationCategory;
+  locationKey?: string | null;
+  contactAddress?: string | null;
+  countryCode?: string | null;
+  phoneNumber?: string | null;
+  website?: string | null;
+  created_at?: string;
+}
+
+/**
+ * Instagram Embed (replaces type='instagram' entries from old LocationEntry)
+ * Represents Instagram posts embedded for a location
+ */
+export interface InstagramEmbed {
+  id?: number;
+  location_id: number;  // FK to locations table
+  username: string;
+  url: string;
+  embed_code: string;
+  instagram?: string | null;  // Instagram profile URL
+  images?: string[];
+  original_image_urls?: string[];
+  created_at?: string;
+}
+
+/**
+ * Upload (replaces type='upload' entries from old LocationEntry)
+ * Represents directly uploaded images for a location
+ */
+export interface Upload {
+  id?: number;
+  location_id: number;  // FK to locations table
+  photographerCredit?: string | null;  // Optional photographer attribution
+  images?: string[];
+  created_at?: string;
+}
+
+/**
+ * Location with nested children (new API response type)
+ * Replaces LocationWithChildren after migration
+ */
+export interface LocationWithNested extends Location {
+  instagram_embeds?: InstagramEmbed[];
+  uploads?: Upload[];
+}
+
 export interface CreateMapsRequest {
   name: string;
   address: string;
+  category: LocationCategory;
 }
 
 export interface UpdateMapsRequest {
@@ -96,7 +162,6 @@ export interface UpdateMapsRequest {
   title?: string | null;
   address: string;
   category?: LocationCategory;
-  dining_type?: DiningType | null;
   contactAddress?: string;
   countryCode?: string;
   phoneNumber?: string;

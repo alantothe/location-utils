@@ -1,4 +1,4 @@
-import type { LocationCategory, LocationEntry, DiningType } from "../models/location";
+import type { LocationCategory, Location, InstagramEmbed, Upload } from "../models/location";
 
 export function generateGoogleMapsUrl(name: string, address: string): string {
   const query = `${name} ${address}`;
@@ -208,24 +208,17 @@ export async function createFromMaps(
   name: string,
   address: string,
   apiKey?: string,
-  category: LocationCategory = "attractions",
-  dining_type?: DiningType | null
-): Promise<LocationEntry> {
+  category: LocationCategory = "attractions"
+): Promise<Location> {
   const url = generateGoogleMapsUrl(name, address);
-  const entry: LocationEntry = {
+  const entry: Location = {
     name,
+    title: name,
     address,
     url,
-    embed_code: undefined,
-    instagram: undefined,
-    images: [],
-    original_image_urls: [],
     lat: null,
     lng: null,
-    parent_id: null,
-    type: "maps",
     category,
-    dining_type,
     locationKey: null,
   };
 
@@ -269,6 +262,7 @@ export async function createFromMaps(
         if (placeDetails.name && placeDetails.name !== name) {
           // The official name might be different
           entry.name = placeDetails.name;
+          entry.title = placeDetails.name;
         }
         if (placeDetails.website) {
           entry.website = placeDetails.website;
@@ -290,41 +284,46 @@ export async function createFromMaps(
   return entry;
 }
 
-export function createFromInstagram(embedHtml: string, parentLocationId?: number): LocationEntry {
+export function createFromInstagram(embedHtml: string, locationId: number): InstagramEmbed {
   const { author } = extractInstagramData(embedHtml);
-  const name = author ? `${author}_${Date.now()}` : `Instagram_${Date.now()}`;
-  const instaProfile = normalizeInstagram(author);
+
+  // Extract clean username from author
+  let username = "Unknown";
+  if (author) {
+    // Extract the username from text like "Name (@username)" or "username"
+    const usernameMatch = author.match(/@([a-zA-Z0-9._]+)/);
+    if (usernameMatch && usernameMatch[1]) {
+      username = `@${usernameMatch[1]}`;
+    } else {
+      // If no @ found, use first word and clean it
+      const cleaned = author.trim().split(/\s+/)[0]!.replace(/[^a-zA-Z0-9._]/g, "");
+      if (cleaned) {
+        username = `@${cleaned}`;
+      } else {
+        console.warn("Failed to extract username from author text:", author);
+      }
+    }
+  } else {
+    console.warn("No author found in Instagram embed code. Username will default to 'Unknown'.");
+  }
 
   return {
-    name,
-    address: "Instagram Embed",
+    location_id: locationId,
+    username,
     url: extractInstagramData(embedHtml).url || "",
     embed_code: embedHtml,
-    instagram: instaProfile || undefined,
     images: [],
     original_image_urls: [],
-    lat: null,
-    lng: null,
-    parent_id: parentLocationId || null,
-    type: "instagram",
   };
 }
 
-export function createFromUpload(parentLocationId: number, timestamp?: number): LocationEntry {
-  const ts = timestamp || Date.now();
-  const name = `Upload ${ts}`;
-
+export function createFromUpload(
+  locationId: number,
+  photographerCredit?: string | null
+): Upload {
   return {
-    name,
-    address: "Direct Upload",
-    url: "",
-    embed_code: undefined,
-    instagram: undefined,
+    location_id: locationId,
+    photographerCredit: photographerCredit || null,
     images: [],
-    original_image_urls: [],
-    lat: null,
-    lng: null,
-    parent_id: parentLocationId,
-    type: "upload",
   };
 }
