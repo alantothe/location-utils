@@ -102,7 +102,8 @@ export function getAllInstagramEmbeds(): InstagramEmbed[] {
 export function deleteInstagramEmbedById(id: number): boolean {
   try {
     const db = getDb();
-    db.run("DELETE FROM instagram_embeds WHERE id = $id", { $id: id });
+    const query = db.query("DELETE FROM instagram_embeds WHERE id = $id");
+    query.run({ $id: id });
     return true;
   } catch (error) {
     console.error("Error deleting Instagram embed:", error);

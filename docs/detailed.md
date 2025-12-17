@@ -29,11 +29,9 @@ Comprehensive walkthrough of the current backend (Bun + Hono) plus the supportin
     - Static file route: `GET /src/data/images/*` → `serveImage`
   - UI flow: the frontend (card-style dashboard described in `README.md`) should call these endpoints to list locations, add map entries, attach Instagram embeds, upload images, and fetch taxonomy data for dropdowns. Image URLs embedded in responses are expected to be reachable via the static route.
 
-### Models & Config
+### Models
 - `src/features/locations/models/location.ts`
   - Defines types (`Location`, `InstagramEmbed`, `Upload`, `LocationWithNested`, taxonomy types). Contact fields and `locationKey` are included in the `Location` type.
-- `src/features/locations/config/location-fields.config.ts`
-  - Describes contact info form metadata (likely for a CMS/admin UI), mapping country codes from `src/shared/utils/country-codes.ts`.
 
 ### Controllers & Services
 - `controllers/locations/index.ts`

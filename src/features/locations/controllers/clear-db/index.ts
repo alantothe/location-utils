@@ -1,4 +1,4 @@
-import { Context } from "hono";
+import type { Context } from "hono";
 import { getDb } from "../../../../shared/db/client";
 
 export async function clearDatabase(c: Context) {

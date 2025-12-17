@@ -64,8 +64,7 @@ src/features/locations/
 ├── models/              # TypeScript types and interfaces
 ├── routes/              # Route registration (auto-imported by main.ts)
 ├── utils/               # Location parsing/formatting helpers
-├── scripts/             # Runnable scripts (seed, test)
-└── config/              # Location field configurations
+└── scripts/             # Runnable scripts (seed, test)
 ```
 
 ### Shared Code

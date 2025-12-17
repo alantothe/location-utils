@@ -89,7 +89,8 @@ export function getAllUploads(): Upload[] {
 export function deleteUploadById(id: number): boolean {
   try {
     const db = getDb();
-    db.run("DELETE FROM uploads WHERE id = $id", { $id: id });
+    const query = db.query("DELETE FROM uploads WHERE id = $id");
+    query.run({ $id: id });
     return true;
   } catch (error) {
     console.error("Error deleting upload:", error);
