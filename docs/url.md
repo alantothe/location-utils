@@ -12,7 +12,7 @@ http://localhost:3000
 ### Location Management
 - `GET /api/locations` - List all locations
 - `POST /api/add-maps` - Create maps location
-- `POST /api/update-maps` - Update maps location
+- `PATCH /api/maps/:id` - Partially update maps location
 - `POST /api/add-instagram` - Add Instagram embed
 - `POST /api/add-upload` - Upload files
 - `POST /api/open-folder` - Open system folder
@@ -112,50 +112,104 @@ Creates a new maps location entry.
 }
 ```
 
-### POST /api/update-maps
-Updates an existing maps location entry.
+### PATCH /api/maps/:id
+Partially updates an existing maps location entry. Only allows updates to specific user-editable fields and rejects immutable system-managed fields.
+
+**Path Parameters:**
+- `id` (required): The numeric ID of the location to update
 
 **Request Body (JSON):**
 ```json
 {
-  "id": 1,
   "title": "Updated Display Title",
-  "name": "Updated Location Name",
-  "address": "Updated Address",
   "category": "dining",
+  "locationKey": "peru|lima|miraflores",
   "contactAddress": "Updated contact address",
-  "countryCode": "+1",
-  "phoneNumber": "555-1234",
-  "website": "https://example.com",
-  "locationKey": "colombia|bogota|chapinero"
+  "countryCode": "PE",
+  "phoneNumber": "+51 1 2425957",
+  "website": "https://example.com"
 }
 ```
 
-- Required: `id`, `title`
-- Optional: `name`, `address`, `category`, `contactAddress`, `countryCode`, `phoneNumber`, `website`, `locationKey`
-- Behavior: Supply both `name` and `address` together to regenerate the Google Maps URL. When the address changes and `GOOGLE_MAPS_API_KEY` is configured, the server will re-geocode and update coordinates. The `category` defaults to `attractions` if not provided or invalid. Other fields are updated directly when provided.
+**Field Details:**
 
-**Response:**
+**Updatable fields (all optional, at least one required):**
+- `title` (string): Display title for the location
+- `category` (enum): One of "dining", "accommodations", "attractions", "nightlife"
+- `locationKey` (string): Hierarchical location key (e.g., "peru|lima|miraflores")
+- `contactAddress` (string): Contact address (can differ from main address)
+- `countryCode` (string): ISO country code (2 characters, e.g., "PE", "US")
+- `phoneNumber` (string): Phone number
+- `website` (string): Valid URL format (e.g., "https://example.com")
+
+**Immutable fields (rejected if present in request):**
+- `id`, `name`, `address`, `url`, `lat`, `lng`, `created_at`
+- `instagram_embeds`, `uploads`
+
+**Validation Rules:**
+- At least one updatable field must be provided (empty body returns 400)
+- Category must be one of the four valid values
+- Website must be a valid URL format
+- Country code must be exactly 2 characters
+- All string fields are trimmed of whitespace
+
+**Behavior:**
+- Performs partial updates only on provided fields
+- Does not recompute derived data (URLs, coordinates, geocoding)
+- Does not modify system-managed fields
+- Does not overwrite fields that aren't provided
+- Preserves existing values for non-provided fields
+
+**Example Requests:**
+
+**Update single field:**
+```bash
+curl -X PATCH http://localhost:3000/api/maps/1 \
+  -H "Content-Type: application/json" \
+  -d '{"title": "New Restaurant Name"}'
+```
+
+**Update multiple fields:**
+```bash
+curl -X PATCH http://localhost:3000/api/maps/1 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "category": "dining",
+    "phoneNumber": "+51 1 2425957",
+    "website": "https://panchita.pe"
+  }'
+```
+
+**Success Response (200):**
 ```json
 {
   "success": true,
   "entry": {
     "id": 1,
-    "name": "Updated Location Name",
-    "title": "Updated Display Title",
-    "address": "Updated Address",
-    "url": "https://maps.google.com/...",
-    "lat": 40.7128,
-    "lng": -74.0060,
+    "name": "Panchita - Miraflores",
+    "title": "Updated display title",
+    "address": "C. 2 de Mayo 298, Miraflores 15074, Peru",
+    "url": "https://www.google.com/maps/search/?api=1&query=...",
+    "lat": -12.1177544,
+    "lng": -77.03121370000001,
     "category": "dining",
-    "contactAddress": "Updated contact address",
-    "countryCode": "+1",
-    "phoneNumber": "555-1234",
-    "website": "https://example.com",
-    "locationKey": "colombia|bogota|chapinero"
+    "locationKey": "peru|lima|miraflores",
+    "contactAddress": "C. 2 de Mayo 298, Miraflores 15074, Peru",
+    "countryCode": "PE",
+    "phoneNumber": "+51 1 2425957",
+    "website": "https://panchita.pe/",
+    "created_at": "2025-12-16 21:34:40",
+    "instagram_embeds": [],
+    "uploads": []
   }
 }
 ```
+
+**Error Responses:**
+- `400 Bad Request`: Empty request body, immutable field present, invalid category, invalid URL format, invalid country code
+- `404 Not Found`: Location with specified ID does not exist
+
+**Note:** This endpoint differs from `POST /api/update-maps` in that it only accepts updatable fields and performs true partial updates without side effects like geocoding or URL regeneration.
 
 ### POST /api/add-instagram
 Adds an Instagram embed to an existing location.

@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 
 import { getLocations } from "./src/features/locations/controllers/locations.controller";
+import { patchMapsById } from "./src/features/locations/controllers/maps.controller";
 import { serveImage } from "./src/features/locations/controllers/files.controller";
 import {
   getLocationHierarchy,
@@ -53,6 +54,14 @@ console.log("📍 Testing Location Routes:");
 
 // Test GET /api/locations
 await testRoute("GET /api/locations", getLocations, mockContext());
+
+// Test PATCH /api/maps/:id (non-existent ID to test error handling)
+const patchContext = mockContext({ id: "99999" }, { title: "Updated Title" });
+// Add required methods for the controller
+(patchContext as any).set = (key: string, value: any) => { (patchContext as any)[key] = value; };
+(patchContext as any).get = (key: string) => (patchContext as any)[key];
+(patchContext as any).validatedBody = { title: "Updated Title" };
+await testRoute("PATCH /api/maps/99999 (non-existent)", patchMapsById, patchContext, 404);
 
 // Test Location Hierarchy Routes
 console.log("🏛️  Testing Location Hierarchy Routes:");

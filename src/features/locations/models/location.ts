@@ -89,18 +89,6 @@ export interface CreateMapsRequest {
   category: LocationCategory;
 }
 
-export interface UpdateMapsRequest {
-  id: number;
-  name: string;
-  title?: string | null;
-  address: string;
-  category?: LocationCategory;
-  contactAddress?: string;
-  countryCode?: string;
-  phoneNumber?: string;
-  website?: string;
-  locationKey?: string | null;
-}
 
 export interface AddInstagramRequest {
   embedCode: string;

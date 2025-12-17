@@ -1,4 +1,5 @@
-import type { CreateMapsRequest, Location, UpdateMapsRequest } from "../models/location";
+import type { CreateMapsRequest, Location } from "../models/location";
+import type { PatchMapsDto } from "../validation/schemas/maps.schemas";
 import { BadRequestError, NotFoundError } from "../../../shared/core/errors/http-error";
 import { EnvConfig } from "../../../shared/config/env.config";
 import {
@@ -33,78 +34,36 @@ export class MapsService {
     return entry;
   }
 
-  async updateMapsLocation(payload: UpdateMapsRequest): Promise<Location> {
-    if (!payload.id) {
-      throw new BadRequestError("ID required");
-    }
 
-    if (!payload.title) {
-      throw new BadRequestError("Display Title required");
-    }
-
-    const currentLocation = getLocationById(payload.id);
+  async updateMapsLocationById(id: number, updates: PatchMapsDto): Promise<Location> {
+    const currentLocation = getLocationById(id);
     if (!currentLocation) {
-      throw new NotFoundError("Location", payload.id);
+      throw new NotFoundError("Location", id);
     }
 
-    // Validate category or default to "attractions" if not provided
-    const category = validateCategoryWithDefault(payload.category);
+    // Validate category if provided
+    const category = updates.category ? validateCategory(updates.category) : undefined;
 
-    let newUrl = currentLocation.url;
-    let lat = currentLocation.lat;
-    let lng = currentLocation.lng;
-    let name = payload.name || currentLocation.name;
-    let address = payload.address || currentLocation.address;
-    let countryCode = currentLocation.countryCode;
-    let locationKey = currentLocation.locationKey;
+    // Perform partial update - only update provided fields
+    const updateData = {
+      ...(updates.title !== undefined && { title: updates.title }),
+      ...(category !== undefined && { category }),
+      ...(updates.locationKey !== undefined && { locationKey: updates.locationKey }),
+      ...(updates.contactAddress !== undefined && { contactAddress: updates.contactAddress }),
+      ...(updates.countryCode !== undefined && { countryCode: updates.countryCode }),
+      ...(updates.phoneNumber !== undefined && { phoneNumber: updates.phoneNumber }),
+      ...(updates.website !== undefined && { website: updates.website }),
+    };
 
-    if (payload.name && payload.address) {
-      newUrl = generateGoogleMapsUrl(payload.name, payload.address);
-
-      if (this.config.hasGoogleMapsKey() && payload.address !== currentLocation.address) {
-        try {
-          const coords = await geocode(payload.address, this.config.GOOGLE_MAPS_API_KEY);
-          if (coords) {
-            lat = coords.lat;
-            lng = coords.lng;
-            if (coords.countryCode) {
-              countryCode = coords.countryCode;
-            }
-            if (coords.locationKey) {
-              locationKey = coords.locationKey;
-            }
-          }
-        } catch (e) {
-          console.warn("Failed to geocode updated address:", e);
-        }
-      }
-    } else if (!payload.name && !payload.address) {
-      name = currentLocation.name;
-      address = currentLocation.address;
-    }
-
-    const success = updateLocationById(payload.id, {
-      name,
-      title: payload.title,
-      address,
-      category,
-      url: newUrl,
-      lat,
-      lng,
-      contactAddress: payload.contactAddress,
-      countryCode: payload.countryCode ?? countryCode,
-      phoneNumber: payload.phoneNumber,
-      website: payload.website,
-      locationKey: payload.locationKey ?? locationKey,
-    });
+    const success = updateLocationById(id, updateData);
 
     if (!success) {
-      throw new Error("Failed to update location");
+      throw new BadRequestError("Failed to update location");
     }
 
-    const updatedLocation = getLocationById(payload.id);
+    const updatedLocation = getLocationById(id);
     if (!updatedLocation) {
-      throw new NotFoundError("Location", payload.id);
+      throw new NotFoundError("Location", id);
     }
 
     return updatedLocation;
