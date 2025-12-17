@@ -42,7 +42,7 @@ async function testRoute(name: string, handler: Function, context: any, expected
     } else {
       console.log(`    ✅ ${name} - Handler executed successfully`);
     }
-  } catch (error) {
+  } catch (error: any) {
     console.log(`    ❌ ${name} - Error: ${error.message}`);
   }
   console.log();
