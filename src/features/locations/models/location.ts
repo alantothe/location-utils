@@ -94,3 +94,37 @@ export interface AddInstagramRequest {
   embedCode: string;
   locationId: number;
 }
+
+/**
+ * API Response Types - Nested structure for external consumption
+ */
+export interface LocationContact {
+  countryCode: string | null;
+  phoneNumber: string | null;
+  website: string | null;
+  contactAddress: string | null;
+  url: string;
+}
+
+export interface LocationCoordinates {
+  lat: number | null;
+  lng: number | null;
+}
+
+export interface LocationSource {
+  name: string;
+  address: string;
+}
+
+export interface LocationResponse {
+  id: number;
+  title: string | null;
+  category: LocationCategory;
+  locationKey: string | null;
+  contact: LocationContact;
+  coordinates: LocationCoordinates;
+  source: LocationSource;
+  instagram_embeds: InstagramEmbed[];
+  uploads: Upload[];
+  created_at: string;
+}

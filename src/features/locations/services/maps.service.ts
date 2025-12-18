@@ -1,4 +1,4 @@
-import type { CreateMapsRequest, Location } from "../models/location";
+import type { CreateMapsRequest, Location, LocationResponse } from "../models/location";
 import type { PatchMapsDto } from "../validation/schemas/maps.schemas";
 import { BadRequestError, NotFoundError } from "../../../shared/core/errors/http-error";
 import { EnvConfig } from "../../../shared/config/env.config";
@@ -12,6 +12,9 @@ import {
   saveLocation,
   updateLocationById,
 } from "../repositories/location.repository";
+import { getInstagramEmbedsByLocationId } from "../repositories/instagram-embed.repository";
+import { getUploadsByLocationId } from "../repositories/upload.repository";
+import { transformLocationToResponse } from "../utils/location-utils";
 import { validateCategory, validateCategoryWithDefault } from "../utils/category-utils";
 
 export class MapsService {
@@ -19,7 +22,7 @@ export class MapsService {
     private readonly config: EnvConfig
   ) {}
 
-  async addMapsLocation(payload: CreateMapsRequest): Promise<Location> {
+  async addMapsLocation(payload: CreateMapsRequest): Promise<LocationResponse> {
     if (!payload.name || !payload.address) {
       throw new BadRequestError("Name and address required");
     }
@@ -31,11 +34,19 @@ export class MapsService {
     const entry = await createFromMaps(payload.name, payload.address, apiKey, category);
 
     saveLocation(entry);
-    return entry;
+
+    // Transform to response format
+    const locationWithNested = {
+      ...entry,
+      instagram_embeds: [],
+      uploads: [],
+    };
+
+    return transformLocationToResponse(locationWithNested);
   }
 
 
-  async updateMapsLocationById(id: number, updates: PatchMapsDto): Promise<Location> {
+  async updateMapsLocationById(id: number, updates: PatchMapsDto): Promise<LocationResponse> {
     const currentLocation = getLocationById(id);
     if (!currentLocation) {
       throw new NotFoundError("Location", id);
@@ -66,6 +77,17 @@ export class MapsService {
       throw new NotFoundError("Location", id);
     }
 
-    return updatedLocation;
+    // Fetch nested data
+    const instagramEmbeds = getInstagramEmbedsByLocationId(id);
+    const uploads = getUploadsByLocationId(id);
+
+    // Transform to response format
+    const locationWithNested = {
+      ...updatedLocation,
+      instagram_embeds: instagramEmbeds,
+      uploads: uploads,
+    };
+
+    return transformLocationToResponse(locationWithNested);
   }
 }

@@ -7,13 +7,51 @@ This document outlines all available API endpoints for the URL Utility applicati
 http://localhost:3000
 ```
 
+## API Response Format
+
+All location-related endpoints (GET, POST, PATCH) return locations in a **nested structure** for better organization:
+
+```json
+{
+  "id": 1,
+  "title": "Restaurant Name",
+  "category": "dining",
+  "locationKey": "peru|lima|miraflores",
+  "contact": {
+    "countryCode": "PE",
+    "phoneNumber": "+51 1 2425957",
+    "website": "https://panchita.pe/",
+    "contactAddress": "C. 2 de Mayo 298, Miraflores 15074, Peru",
+    "url": "https://www.google.com/maps/search/?api=1&query=..."
+  },
+  "coordinates": {
+    "lat": -12.1177544,
+    "lng": -77.03121370000001
+  },
+  "source": {
+    "name": "Panchita - Miraflores",
+    "address": "C. 2 de Mayo 298, Miraflores 15074, Peru"
+  },
+  "instagram_embeds": [...],
+  "uploads": [...],
+  "created_at": "2025-12-16 21:34:40"
+}
+```
+
+**Important Notes:**
+- **Database is flat:** Fields are stored individually in SQLite (no JSON columns)
+- **API transforms responses:** The nesting happens at the service layer for better organization
+- **PATCH requests use flat fields:** Send individual fields like `phoneNumber`, not nested objects
+- **source object:** Preserves original user input (name/address) as immutable reference data
+- **contact/coordinates:** Can contain null values if data isn't available (e.g., not geocoded)
+
 ## API Endpoints Glossary
 
 ### Location Management
 - `GET /api/locations` - List all locations
 - `POST /api/add-maps` - Create maps location
 - `PATCH /api/maps/:id` - Partially update maps location
-- `POST /api/add-instagram` - Add Instagram embed
+- `POST /api/add-instagram/:id` - Add Instagram embed to location
 - `POST /api/add-upload` - Upload files
 - `POST /api/open-folder` - Open system folder
 - `GET /api/clear-db` - Clear all location data
@@ -30,7 +68,37 @@ http://localhost:3000
 ## Location Management Endpoints
 
 ### GET /api/locations
-Retrieves all locations with their associated Instagram embeds and uploads. The response now only returns the core fields for each location plus the nested child arrays.
+Retrieves all locations with their associated Instagram embeds and uploads. Supports optional filtering by category and/or location hierarchy. The response returns locations in a nested structure with `contact`, `coordinates`, and `source` objects.
+
+**Query Parameters (Optional):**
+- `category` (string): Filter by location category. Valid values: `dining`, `accommodations`, `attractions`, `nightlife`
+- `locationKey` (string): Filter by hierarchical location. Format: `country` or `country|city` or `country|city|neighborhood`
+  - Examples: `peru`, `peru|lima`, `peru|lima|miraflores`
+  - Supports hierarchical matching (e.g., `colombia|bogota` returns all neighborhoods within Bogota)
+  - Must use lowercase with hyphens (kebab-case)
+- Both filters can be combined with AND logic (e.g., `?category=dining&locationKey=colombia|bogota`)
+
+**Examples:**
+
+```bash
+# Get all locations
+GET /api/locations
+
+# Filter by category
+GET /api/locations?category=dining
+
+# Filter by country
+GET /api/locations?locationKey=colombia
+
+# Filter by city
+GET /api/locations?locationKey=colombia|bogota
+
+# Filter by neighborhood
+GET /api/locations?locationKey=colombia|bogota|chapinero
+
+# Combined filters (dining locations in Bogota)
+GET /api/locations?category=dining&locationKey=colombia|bogota
+```
 
 **Response:**
 ```json
@@ -38,14 +106,24 @@ Retrieves all locations with their associated Instagram embeds and uploads. The 
   "locations": [
     {
       "id": 1,
-      "name": "Location Name",
       "title": "Display Title",
-      "address": "123 Main St, City, Country",
-      "url": "https://maps.google.com/...",
-      "lat": 40.7128,
-      "lng": -74.0060,
-      "category": "attractions",
-      "created_at": "2024-01-15T10:30:00.000Z",
+      "category": "dining",
+      "locationKey": "peru|lima|miraflores",
+      "contact": {
+        "countryCode": "PE",
+        "phoneNumber": "+51 1 2425957",
+        "website": "https://panchita.pe/",
+        "contactAddress": "C. 2 de Mayo 298, Miraflores 15074, Peru",
+        "url": "https://www.google.com/maps/search/?api=1&query=..."
+      },
+      "coordinates": {
+        "lat": -12.1177544,
+        "lng": -77.03121370000001
+      },
+      "source": {
+        "name": "Panchita - Miraflores",
+        "address": "C. 2 de Mayo 298, Miraflores 15074, Peru"
+      },
       "instagram_embeds": [
         {
           "id": 2,
@@ -65,14 +143,67 @@ Retrieves all locations with their associated Instagram embeds and uploads. The 
           "images": [],
           "created_at": "2024-01-15T11:30:00.000Z"
         }
-      ]
+      ],
+      "created_at": "2024-01-15T10:30:00.000Z"
     }
   ],
   "cwd": "/current/working/directory"
 }
 ```
-- `instagram_embeds` and `uploads` are always present as arrays (empty when no children)
-- `cwd` reflects the server process working directory
+
+**Response Structure:**
+- **Top-level fields:** `id`, `title`, `category`, `locationKey`, `created_at`
+- **contact object:** Contains all contact information (`countryCode`, `phoneNumber`, `website`, `contactAddress`, `url`)
+- **coordinates object:** Contains geocoded position (`lat`, `lng`) - can be null if not geocoded
+- **source object:** Preserves original user input (`name`, `address`) as immutable data
+- **instagram_embeds** and **uploads:** Always present as arrays (empty when no children)
+- **cwd:** Reflects the server process working directory
+
+**Filter Behavior:**
+- **Hierarchical matching:** When filtering by `locationKey`, results include exact matches and all child locations
+  - Example: `?locationKey=colombia|bogota` returns locations with:
+    - `locationKey = "colombia|bogota"` (exact city match)
+    - `locationKey = "colombia|bogota|chapinero"` (child neighborhood)
+    - `locationKey = "colombia|bogota|usaquen"` (child neighborhood)
+  - Does NOT return parent locations (e.g., `locationKey = "colombia"`)
+- **Combined filters:** When both `category` and `locationKey` are provided, results must match BOTH criteria (AND logic)
+- **Null locationKey:** Locations without a `locationKey` value are excluded from locationKey-filtered results
+
+**Validation Errors:**
+
+Invalid category:
+```bash
+GET /api/locations?category=invalid
+# Response: 400 Bad Request
+{
+  "success": false,
+  "error": "Query validation failed",
+  "code": "VALIDATION_ERROR",
+  "details": {
+    "errors": [{
+      "code": "invalid_enum_value",
+      "options": ["dining", "accommodations", "attractions", "nightlife"],
+      "path": ["category"]
+    }]
+  }
+}
+```
+
+Invalid locationKey format:
+```bash
+GET /api/locations?locationKey=Invalid|Format
+# Response: 400 Bad Request
+{
+  "success": false,
+  "error": "Query validation failed",
+  "code": "VALIDATION_ERROR",
+  "details": {
+    "errors": [{
+      "message": "Invalid locationKey format. Expected: country or country|city or country|city|neighborhood"
+    }]
+  }
+}
+```
 
 ### POST /api/add-maps
 Creates a new maps location entry.
@@ -94,23 +225,36 @@ Creates a new maps location entry.
 ```json
 {
   "success": true,
-  "entry": {
-    "id": 1,
-    "name": "Location Name",
-    "title": null,
-    "address": "123 Main St, City, State",
-    "url": "https://maps.google.com/...",
-    "lat": 40.7128,
-    "lng": -74.0060,
-    "category": "attractions",
-    "contactAddress": "123 Main St, City, State",
-    "countryCode": "+1",
-    "phoneNumber": "555-1234",
-    "website": "https://example.com",
-    "locationKey": "colombia|bogota|chapinero"
+  "data": {
+    "entry": {
+      "id": 1,
+      "title": null,
+      "category": "dining",
+      "locationKey": "peru|lima|miraflores",
+      "contact": {
+        "countryCode": "PE",
+        "phoneNumber": "+51 1 2425957",
+        "website": "https://panchita.pe/",
+        "contactAddress": "C. 2 de Mayo 298, Miraflores 15074, Peru",
+        "url": "https://www.google.com/maps/search/?api=1&query=..."
+      },
+      "coordinates": {
+        "lat": -12.1177544,
+        "lng": -77.03121370000001
+      },
+      "source": {
+        "name": "Location Name",
+        "address": "123 Main St, City, State"
+      },
+      "instagram_embeds": [],
+      "uploads": [],
+      "created_at": "2024-01-15T10:30:00.000Z"
+    }
   }
 }
 ```
+
+**Note:** The response includes a nested structure with `contact`, `coordinates`, and `source` objects. The database stores fields in a flat schema, but the API transforms the response for better organization.
 
 ### PATCH /api/maps/:id
 Partially updates an existing maps location entry. Only allows updates to specific user-editable fields and rejects immutable system-managed fields.
@@ -145,6 +289,7 @@ Partially updates an existing maps location entry. Only allows updates to specif
 **Immutable fields (rejected if present in request):**
 - `id`, `name`, `address`, `url`, `lat`, `lng`, `created_at`
 - `instagram_embeds`, `uploads`
+- **Nested response-only fields:** `contact`, `coordinates`, `source` (clients must send flat fields for updates)
 
 **Validation Rules:**
 - At least one updatable field must be provided (empty body returns 400)
@@ -184,26 +329,34 @@ curl -X PATCH http://localhost:3000/api/maps/1 \
 ```json
 {
   "success": true,
-  "entry": {
+  "data": {
     "id": 1,
-    "name": "Panchita - Miraflores",
     "title": "Updated display title",
-    "address": "C. 2 de Mayo 298, Miraflores 15074, Peru",
-    "url": "https://www.google.com/maps/search/?api=1&query=...",
-    "lat": -12.1177544,
-    "lng": -77.03121370000001,
     "category": "dining",
     "locationKey": "peru|lima|miraflores",
-    "contactAddress": "C. 2 de Mayo 298, Miraflores 15074, Peru",
-    "countryCode": "PE",
-    "phoneNumber": "+51 1 2425957",
-    "website": "https://panchita.pe/",
-    "created_at": "2025-12-16 21:34:40",
+    "contact": {
+      "countryCode": "PE",
+      "phoneNumber": "+51 1 2425957",
+      "website": "https://panchita.pe/",
+      "contactAddress": "C. 2 de Mayo 298, Miraflores 15074, Peru",
+      "url": "https://www.google.com/maps/search/?api=1&query=..."
+    },
+    "coordinates": {
+      "lat": -12.1177544,
+      "lng": -77.03121370000001
+    },
+    "source": {
+      "name": "Panchita - Miraflores",
+      "address": "C. 2 de Mayo 298, Miraflores 15074, Peru"
+    },
     "instagram_embeds": [],
-    "uploads": []
+    "uploads": [],
+    "created_at": "2025-12-16 21:34:40"
   }
 }
 ```
+
+**Note:** The response uses the same nested structure as GET and POST endpoints. Updates are sent as flat fields, but the response returns the transformed nested format.
 
 **Error Responses:**
 - `400 Bad Request`: Empty request body, immutable field present, invalid category, invalid URL format, invalid country code
@@ -211,18 +364,20 @@ curl -X PATCH http://localhost:3000/api/maps/1 \
 
 **Note:** This endpoint differs from `POST /api/update-maps` in that it only accepts updatable fields and performs true partial updates without side effects like geocoding or URL regeneration.
 
-### POST /api/add-instagram
+### POST /api/add-instagram/:id
 Adds an Instagram embed to an existing location.
+
+**Path Parameters:**
+- `id` (required): The numeric ID of the location to add the Instagram embed to
 
 **Request Body (JSON):**
 ```json
 {
-  "embedCode": "<blockquote class=\"instagram-media\">...</blockquote>",
-  "locationId": 1
+  "embedCode": "<blockquote class=\"instagram-media\">...</blockquote>"
 }
 ```
 
-- Required: `embedCode` (full Instagram embed HTML containing `data-instgrm-permalink`), `locationId` (an existing parent location)
+- Required: `embedCode` (full Instagram embed HTML containing `data-instgrm-permalink`)
 - Optional: none
 - Behavior: Creates an Instagram embed entry linked to the parent location via `location_id`. The server extracts the Instagram permalink and author information from the embed code. The `username` field is populated with the extracted username (e.g., `@username`) from the embed code's "A post shared by..." text. If username extraction fails, the request will be rejected with an error message. The server attempts to download media via RapidAPI and saves images to `src/data/images/{location}/instagram/{timestamp}/image_{n}.jpg`. The `images` array contains local file paths, and `original_image_urls` contains the original Instagram URLs. If media download fails, the embed entry is still created without images.
 
@@ -242,10 +397,9 @@ When submitting Instagram embed codes via API (curl, Postman, etc.), the HTML co
 
 **Option 1: Escape quotes with backslashes**
 ```bash
-curl -X POST http://localhost:3000/api/add-instagram \
+curl -X POST http://localhost:3000/api/add-instagram/1 \
   -H "Content-Type: application/json" \
   -d '{
-    "locationId": 1,
     "embedCode": "<blockquote class=\"instagram-media\" data-instgrm-permalink=\"https://www.instagram.com/p/ABC123/\">...</blockquote>"
   }'
 ```
@@ -254,12 +408,11 @@ curl -X POST http://localhost:3000/api/add-instagram \
 ```bash
 # Create embed.json with properly formatted content
 {
-  "locationId": 1,
   "embedCode": "<blockquote class=\"instagram-media\">...</blockquote>"
 }
 
 # Then submit it
-curl -X POST http://localhost:3000/api/add-instagram \
+curl -X POST http://localhost:3000/api/add-instagram/1 \
   -H "Content-Type: application/json" \
   -d @embed.json
 ```
@@ -284,16 +437,18 @@ bun run scripts/add-instagram-embed.ts --location-id 1 --embed-file embed.html
 ```json
 {
   "success": true,
-  "entry": {
-    "id": 2,
-    "location_id": 1,
-    "username": "@username",
-    "url": "https://www.instagram.com/p/ABC123/",
-    "embed_code": "<blockquote class=\"instagram-media\">...</blockquote>",
-    "instagram": null,
-    "images": ["src/data/images/location_name/instagram/1234567890/image_0.jpg"],
-    "original_image_urls": ["https://instagram.com/..."],
-    "created_at": "2024-01-15T11:00:00.000Z"
+  "data": {
+    "entry": {
+      "id": 2,
+      "location_id": 1,
+      "username": "@username",
+      "url": "https://www.instagram.com/p/ABC123/",
+      "embed_code": "<blockquote class=\"instagram-media\">...</blockquote>",
+      "instagram": null,
+      "images": ["src/data/images/location_name/instagram/1234567890/image_0.jpg"],
+      "original_image_urls": ["https://instagram.com/..."],
+      "created_at": "2024-01-15T11:00:00.000Z"
+    }
   }
 }
 ```
@@ -323,12 +478,14 @@ curl -X POST http://localhost:3000/api/add-upload \
 ```json
 {
   "success": true,
-  "entry": {
-    "id": 3,
-    "location_id": 1,
-    "photographerCredit": "Jane Doe Photography",
-    "images": ["src/data/images/location_name/uploads/1234567890/image_0.jpg"],
-    "created_at": "2024-01-15T11:30:00.000Z"
+  "data": {
+    "entry": {
+      "id": 3,
+      "location_id": 1,
+      "photographerCredit": "Jane Doe Photography",
+      "images": ["src/data/images/location_name/uploads/1234567890/image_0.jpg"],
+      "created_at": "2024-01-15T11:30:00.000Z"
+    }
   }
 }
 ```
@@ -481,15 +638,36 @@ Serves uploaded images and other static files from the data directory.
 
 All endpoints may return error responses in the following format:
 
+**Standard Error Response (HttpError):**
 ```json
 {
+  "success": false,
+  "error": "Error message description",
+  "code": "VALIDATION_ERROR",
+  "details": {
+    "field": "fieldName",
+    "value": "invalidValue"
+  }
+}
+```
+
+**Simple Error Response (Unknown Errors):**
+```json
+{
+  "success": false,
   "error": "Error message description"
 }
 ```
 
+**Field Descriptions:**
+- `success`: Always `false` for error responses
+- `error`: Human-readable error message
+- `code`: Optional error code for client-side error handling (only present for HttpError instances)
+- `details`: Optional additional context about the error (only present when error provides details)
+
 Common HTTP status codes:
-- `400`: Bad Request (missing required fields)
-- `404`: Not Found
+- `400`: Bad Request (validation errors, missing required fields, invalid formats)
+- `404`: Not Found (resource doesn't exist)
 - `500`: Internal Server Error
 
 ## Categories

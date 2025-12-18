@@ -131,6 +131,13 @@ export function getAllLocations(): Location[] {
   return rows.map(mapRow);
 }
 
+export function getLocationsByCategory(category: string): Location[] {
+  const db = getDb();
+  const query = db.query("SELECT id, name, title, address, url, lat, lng, category, locationKey, contactAddress, countryCode, phoneNumber, website, created_at FROM locations WHERE category = $category ORDER BY created_at DESC");
+  const rows = query.all({ $category: category }) as any[];
+  return rows.map(mapRow);
+}
+
 export function getLocationById(id: number): Location | null {
   const db = getDb();
   const query = db.query("SELECT id, name, title, address, url, lat, lng, category, locationKey, contactAddress, countryCode, phoneNumber, website, created_at FROM locations WHERE id = $id");

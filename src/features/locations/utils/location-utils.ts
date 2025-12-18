@@ -1,4 +1,11 @@
-import type { LocationHierarchy, CountryData, CityData, NeighborhoodData } from '../models/location';
+import type {
+  LocationHierarchy,
+  CountryData,
+  CityData,
+  NeighborhoodData,
+  LocationWithNested,
+  LocationResponse
+} from '../models/location';
 
 /**
  * Parse a pipe-delimited location key into its components
@@ -163,4 +170,37 @@ export function generateLocationCombinations(countries: CountryData[]): Location
   });
 
   return locations;
+}
+
+/**
+ * Transform a flat location with nested arrays to the API response format
+ * with contact, coordinates, and source objects
+ * @param location - Location with nested instagram_embeds and uploads
+ * @returns Transformed location response with nested objects
+ */
+export function transformLocationToResponse(location: LocationWithNested): LocationResponse {
+  return {
+    id: location.id!,
+    title: location.title || null,
+    category: location.category || 'attractions',
+    locationKey: location.locationKey || null,
+    contact: {
+      countryCode: location.countryCode || null,
+      phoneNumber: location.phoneNumber || null,
+      website: location.website || null,
+      contactAddress: location.contactAddress || null,
+      url: location.url,
+    },
+    coordinates: {
+      lat: location.lat || null,
+      lng: location.lng || null,
+    },
+    source: {
+      name: location.name,
+      address: location.address,
+    },
+    instagram_embeds: location.instagram_embeds || [],
+    uploads: location.uploads || [],
+    created_at: location.created_at || new Date().toISOString(),
+  };
 }

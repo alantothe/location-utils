@@ -34,6 +34,11 @@ export const patchMapsSchema = z.object({
   created_at: z.never().optional(),
   instagram_embeds: z.never().optional(),
   uploads: z.never().optional(),
+
+  // Reject nested response-only fields - clients should send flat fields
+  contact: z.never().optional(),
+  coordinates: z.never().optional(),
+  source: z.never().optional(),
 }).refine((data) => {
   // Ensure at least one updatable field is provided
   return data.title !== undefined ||

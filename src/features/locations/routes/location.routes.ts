@@ -1,7 +1,8 @@
 import { app } from "../../../shared/http/server";
-import { validateBody } from "../../../shared/core/middleware/validation.middleware";
+import { validateBody, validateParams, validateQuery } from "../../../shared/core/middleware/validation.middleware";
 import { createMapsSchema, patchMapsSchema } from "../validation/schemas/maps.schemas";
-import { addInstagramSchema } from "../validation/schemas/instagram.schemas";
+import { addInstagramSchema, addInstagramParamsSchema } from "../validation/schemas/instagram.schemas";
+import { listLocationsQuerySchema } from "../validation/schemas/locations.schemas";
 
 // Import new controllers
 import { getLocations } from "../controllers/locations.controller";
@@ -18,10 +19,15 @@ import {
 import { clearDatabase } from "../controllers/admin.controller";
 
 // Location routes
-app.get("/api/locations", getLocations);
+app.get("/api/locations", validateQuery(listLocationsQuerySchema), getLocations);
 app.post("/api/add-maps", validateBody(createMapsSchema), postAddMaps);
 app.patch("/api/maps/:id", validateBody(patchMapsSchema), patchMapsById);
-app.post("/api/add-instagram", validateBody(addInstagramSchema), postAddInstagram);
+app.post(
+  "/api/add-instagram/:id",
+  validateParams(addInstagramParamsSchema),
+  validateBody(addInstagramSchema),
+  postAddInstagram
+);
 app.post("/api/add-upload", postAddUpload); // Note: validation handled in controller due to multipart form
 app.post("/api/open-folder", postOpenFolder);
 app.get("/api/clear-db", clearDatabase);
