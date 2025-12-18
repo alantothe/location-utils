@@ -1,102 +1,40 @@
 # URL Utility API Documentation
 
-This document outlines all available API endpoints for the URL Utility application, which manages location data including maps locations, Instagram embeds, and uploaded images.
+Base URL: `http://localhost:3000`
 
-## Base URL
-```
-http://localhost:3000
-```
-
-## API Response Format
-
-All location-related endpoints (GET, POST, PATCH) return locations in a **nested structure** for better organization:
-
-```json
-{
-  "id": 1,
-  "title": "Restaurant Name",
-  "category": "dining",
-  "locationKey": "peru|lima|miraflores",
-  "contact": {
-    "countryCode": "PE",
-    "phoneNumber": "+51 1 2425957",
-    "website": "https://panchita.pe/",
-    "contactAddress": "C. 2 de Mayo 298, Miraflores 15074, Peru",
-    "url": "https://www.google.com/maps/search/?api=1&query=..."
-  },
-  "coordinates": {
-    "lat": -12.1177544,
-    "lng": -77.03121370000001
-  },
-  "source": {
-    "name": "Panchita - Miraflores",
-    "address": "C. 2 de Mayo 298, Miraflores 15074, Peru"
-  },
-  "instagram_embeds": [...],
-  "uploads": [...],
-  "created_at": "2025-12-16 21:34:40"
-}
-```
-
-**Important Notes:**
-- **Database is flat:** Fields are stored individually in SQLite (no JSON columns)
-- **API transforms responses:** The nesting happens at the service layer for better organization
-- **PATCH requests use flat fields:** Send individual fields like `phoneNumber`, not nested objects
-- **source object:** Preserves original user input (name/address) as immutable reference data
-- **contact/coordinates:** Can contain null values if data isn't available (e.g., not geocoded)
-
-## API Endpoints Glossary
+## Endpoints
 
 ### Location Management
 - `GET /api/locations` - List all locations
 - `POST /api/add-maps` - Create maps location
-- `PATCH /api/maps/:id` - Partially update maps location
-- `POST /api/add-instagram/:id` - Add Instagram embed to location
-- `POST /api/add-upload` - Upload files
+- `PATCH /api/maps/:id` - Update maps location
+- `POST /api/add-instagram/:id` - Add Instagram embed
+- `POST /api/add-upload/:id` - Upload files
 - `POST /api/open-folder` - Open system folder
-- `GET /api/clear-db` - Clear all location data
+- `GET /api/clear-db` - Clear database
 
 ### Location Hierarchy
-- `GET /api/location-hierarchy` (and legacy `/api/location-taxonomy`) - All hierarchy data
+- `GET /api/location-hierarchy` - All hierarchy data
 - `GET /api/location-hierarchy/countries` - List countries
 - `GET /api/location-hierarchy/cities/:country` - Cities by country
-- `GET /api/location-hierarchy/neighborhoods/:country/:city` - Neighborhoods by city/country
+- `GET /api/location-hierarchy/neighborhoods/:country/:city` - Neighborhoods
 
 ### Static Files
-- `GET /src/data/images/*` - Serve uploaded images
+- `GET /src/data/images/*` - Serve images
 
-## Location Management Endpoints
+---
 
-### GET /api/locations
-Retrieves all locations with their associated Instagram embeds and uploads. Supports optional filtering by category and/or location hierarchy. The response returns locations in a nested structure with `contact`, `coordinates`, and `source` objects.
+## GET /api/locations
 
-**Query Parameters (Optional):**
-- `category` (string): Filter by location category. Valid values: `dining`, `accommodations`, `attractions`, `nightlife`
-- `locationKey` (string): Filter by hierarchical location. Format: `country` or `country|city` or `country|city|neighborhood`
-  - Examples: `peru`, `peru|lima`, `peru|lima|miraflores`
-  - Supports hierarchical matching (e.g., `colombia|bogota` returns all neighborhoods within Bogota)
-  - Must use lowercase with hyphens (kebab-case)
-- Both filters can be combined with AND logic (e.g., `?category=dining&locationKey=colombia|bogota`)
+**Query Parameters:**
+- `category` (optional): `dining` | `accommodations` | `attractions` | `nightlife`
+- `locationKey` (optional): `country` or `country|city` or `country|city|neighborhood`
 
 **Examples:**
-
 ```bash
-# Get all locations
 GET /api/locations
-
-# Filter by category
 GET /api/locations?category=dining
-
-# Filter by country
-GET /api/locations?locationKey=colombia
-
-# Filter by city
 GET /api/locations?locationKey=colombia|bogota
-
-# Filter by neighborhood
-GET /api/locations?locationKey=colombia|bogota|chapinero
-
-# Combined filters (dining locations in Bogota)
 GET /api/locations?category=dining&locationKey=colombia|bogota
 ```
 
@@ -124,26 +62,8 @@ GET /api/locations?category=dining&locationKey=colombia|bogota
         "name": "Panchita - Miraflores",
         "address": "C. 2 de Mayo 298, Miraflores 15074, Peru"
       },
-      "instagram_embeds": [
-        {
-          "id": 2,
-          "location_id": 1,
-          "username": "@username",
-          "url": "https://www.instagram.com/p/ABC123/",
-          "embed_code": "<blockquote class=\"instagram-media\">...</blockquote>",
-          "images": [],
-          "created_at": "2024-01-15T11:00:00.000Z"
-        }
-      ],
-      "uploads": [
-        {
-          "id": 3,
-          "location_id": 1,
-          "photographerCredit": "Jane Doe Photography",
-          "images": [],
-          "created_at": "2024-01-15T11:30:00.000Z"
-        }
-      ],
+      "instagram_embeds": [],
+      "uploads": [],
       "created_at": "2024-01-15T10:30:00.000Z"
     }
   ],
@@ -151,75 +71,18 @@ GET /api/locations?category=dining&locationKey=colombia|bogota
 }
 ```
 
-**Response Structure:**
-- **Top-level fields:** `id`, `title`, `category`, `locationKey`, `created_at`
-- **contact object:** Contains all contact information (`countryCode`, `phoneNumber`, `website`, `contactAddress`, `url`)
-- **coordinates object:** Contains geocoded position (`lat`, `lng`) - can be null if not geocoded
-- **source object:** Preserves original user input (`name`, `address`) as immutable data
-- **instagram_embeds** and **uploads:** Always present as arrays (empty when no children)
-- **cwd:** Reflects the server process working directory
+---
 
-**Filter Behavior:**
-- **Hierarchical matching:** When filtering by `locationKey`, results include exact matches and all child locations
-  - Example: `?locationKey=colombia|bogota` returns locations with:
-    - `locationKey = "colombia|bogota"` (exact city match)
-    - `locationKey = "colombia|bogota|chapinero"` (child neighborhood)
-    - `locationKey = "colombia|bogota|usaquen"` (child neighborhood)
-  - Does NOT return parent locations (e.g., `locationKey = "colombia"`)
-- **Combined filters:** When both `category` and `locationKey` are provided, results must match BOTH criteria (AND logic)
-- **Null locationKey:** Locations without a `locationKey` value are excluded from locationKey-filtered results
+## POST /api/add-maps
 
-**Validation Errors:**
-
-Invalid category:
-```bash
-GET /api/locations?category=invalid
-# Response: 400 Bad Request
-{
-  "success": false,
-  "error": "Query validation failed",
-  "code": "VALIDATION_ERROR",
-  "details": {
-    "errors": [{
-      "code": "invalid_enum_value",
-      "options": ["dining", "accommodations", "attractions", "nightlife"],
-      "path": ["category"]
-    }]
-  }
-}
-```
-
-Invalid locationKey format:
-```bash
-GET /api/locations?locationKey=Invalid|Format
-# Response: 400 Bad Request
-{
-  "success": false,
-  "error": "Query validation failed",
-  "code": "VALIDATION_ERROR",
-  "details": {
-    "errors": [{
-      "message": "Invalid locationKey format. Expected: country or country|city or country|city|neighborhood"
-    }]
-  }
-}
-```
-
-### POST /api/add-maps
-Creates a new maps location entry.
-
-**Request Body (JSON):**
+**Request:**
 ```json
 {
   "name": "Location Name",
   "address": "123 Main St, City, State, Country",
-  "category": "attractions"
+  "category": "dining"
 }
 ```
-
-- Required: `name`, `address`, `category`
-- Optional: none (any extra fields are rejected)
-- Behavior: When `GOOGLE_MAPS_API_KEY` is set, the server geocodes the address and may populate `lat`, `lng`, `countryCode`, `locationKey`, `contactAddress`, `website`, and `phoneNumber` from Google responses. The response echoes every field stored for the created location. Without the key, geocoded fields remain null.
 
 **Response:**
 ```json
@@ -254,78 +117,26 @@ Creates a new maps location entry.
 }
 ```
 
-**Note:** The response includes a nested structure with `contact`, `coordinates`, and `source` objects. The database stores fields in a flat schema, but the API transforms the response for better organization.
+---
 
-### PATCH /api/maps/:id
-Partially updates an existing maps location entry. Only allows updates to specific user-editable fields and rejects immutable system-managed fields.
+## PATCH /api/maps/:id
 
-**Path Parameters:**
-- `id` (required): The numeric ID of the location to update
+**Updatable Fields:**
+- `title`, `category`, `locationKey`, `contactAddress`, `countryCode`, `phoneNumber`, `website`
 
-**Request Body (JSON):**
+**Immutable Fields:**
+- `id`, `name`, `address`, `url`, `lat`, `lng`, `created_at`
+
+**Request:**
 ```json
 {
   "title": "Updated Display Title",
   "category": "dining",
-  "locationKey": "peru|lima|miraflores",
-  "contactAddress": "Updated contact address",
-  "countryCode": "PE",
-  "phoneNumber": "+51 1 2425957",
-  "website": "https://example.com"
+  "phoneNumber": "+51 1 2425957"
 }
 ```
 
-**Field Details:**
-
-**Updatable fields (all optional, at least one required):**
-- `title` (string): Display title for the location
-- `category` (enum): One of "dining", "accommodations", "attractions", "nightlife"
-- `locationKey` (string): Hierarchical location key (e.g., "peru|lima|miraflores")
-- `contactAddress` (string): Contact address (can differ from main address)
-- `countryCode` (string): ISO country code (2 characters, e.g., "PE", "US")
-- `phoneNumber` (string): Phone number
-- `website` (string): Valid URL format (e.g., "https://example.com")
-
-**Immutable fields (rejected if present in request):**
-- `id`, `name`, `address`, `url`, `lat`, `lng`, `created_at`
-- `instagram_embeds`, `uploads`
-- **Nested response-only fields:** `contact`, `coordinates`, `source` (clients must send flat fields for updates)
-
-**Validation Rules:**
-- At least one updatable field must be provided (empty body returns 400)
-- Category must be one of the four valid values
-- Website must be a valid URL format
-- Country code must be exactly 2 characters
-- All string fields are trimmed of whitespace
-
-**Behavior:**
-- Performs partial updates only on provided fields
-- Does not recompute derived data (URLs, coordinates, geocoding)
-- Does not modify system-managed fields
-- Does not overwrite fields that aren't provided
-- Preserves existing values for non-provided fields
-
-**Example Requests:**
-
-**Update single field:**
-```bash
-curl -X PATCH http://localhost:3000/api/maps/1 \
-  -H "Content-Type: application/json" \
-  -d '{"title": "New Restaurant Name"}'
-```
-
-**Update multiple fields:**
-```bash
-curl -X PATCH http://localhost:3000/api/maps/1 \
-  -H "Content-Type: application/json" \
-  -d '{
-    "category": "dining",
-    "phoneNumber": "+51 1 2425957",
-    "website": "https://panchita.pe"
-  }'
-```
-
-**Success Response (200):**
+**Response:**
 ```json
 {
   "success": true,
@@ -356,82 +167,16 @@ curl -X PATCH http://localhost:3000/api/maps/1 \
 }
 ```
 
-**Note:** The response uses the same nested structure as GET and POST endpoints. Updates are sent as flat fields, but the response returns the transformed nested format.
+---
 
-**Error Responses:**
-- `400 Bad Request`: Empty request body, immutable field present, invalid category, invalid URL format, invalid country code
-- `404 Not Found`: Location with specified ID does not exist
+## POST /api/add-instagram/:id
 
-**Note:** This endpoint differs from `POST /api/update-maps` in that it only accepts updatable fields and performs true partial updates without side effects like geocoding or URL regeneration.
-
-### POST /api/add-instagram/:id
-Adds an Instagram embed to an existing location.
-
-**Path Parameters:**
-- `id` (required): The numeric ID of the location to add the Instagram embed to
-
-**Request Body (JSON):**
+**Request:**
 ```json
 {
-  "embedCode": "<blockquote class=\"instagram-media\">...</blockquote>"
+  "embedCode": "<blockquote class=\"instagram-media\" data-instgrm-permalink=\"https://www.instagram.com/p/ABC123/\">...</blockquote>"
 }
 ```
-
-- Required: `embedCode` (full Instagram embed HTML containing `data-instgrm-permalink`)
-- Optional: none
-- Behavior: Creates an Instagram embed entry linked to the parent location via `location_id`. The server extracts the Instagram permalink and author information from the embed code. The `username` field is populated with the extracted username (e.g., `@username`) from the embed code's "A post shared by..." text. If username extraction fails, the request will be rejected with an error message. The server attempts to download media via RapidAPI and saves images to `src/data/images/{location}/instagram/{timestamp}/image_{n}.jpg`. The `images` array contains local file paths, and `original_image_urls` contains the original Instagram URLs. If media download fails, the embed entry is still created without images.
-
-#### Important: JSON Escaping for Embed Codes
-
-When submitting Instagram embed codes via API (curl, Postman, etc.), the HTML content contains double quotes that must be properly escaped in JSON.
-
-**Common Mistake:**
-```bash
-# ❌ Wrong - Unescaped quotes break JSON parsing
-{
-  "embedCode": "<blockquote class="instagram-media">..."
-}
-```
-
-**Correct Approaches:**
-
-**Option 1: Escape quotes with backslashes**
-```bash
-curl -X POST http://localhost:3000/api/add-instagram/1 \
-  -H "Content-Type: application/json" \
-  -d '{
-    "embedCode": "<blockquote class=\"instagram-media\" data-instgrm-permalink=\"https://www.instagram.com/p/ABC123/\">...</blockquote>"
-  }'
-```
-
-**Option 2: Use a JSON file (Recommended)**
-```bash
-# Create embed.json with properly formatted content
-{
-  "embedCode": "<blockquote class=\"instagram-media\">...</blockquote>"
-}
-
-# Then submit it
-curl -X POST http://localhost:3000/api/add-instagram/1 \
-  -H "Content-Type: application/json" \
-  -d @embed.json
-```
-
-**Option 3: Use helper script (see scripts/add-instagram-embed.ts)**
-```bash
-bun run scripts/add-instagram-embed.ts --location-id 1 --embed-file embed.html
-```
-
-#### Troubleshooting
-
-**Error: "JSON Parse error: Unrecognized token"**
-- Cause: Unescaped quotes in embed code breaking JSON syntax
-- Solution: Use one of the escaping methods above
-
-**Error: "Could not extract username from embed code"**
-- Cause: Embed code is missing the "A post shared by @username" section
-- Solution: Ensure you copy the **complete** Instagram embed code (not a truncated preview)
-- How to verify: Search for "A post shared by" in your embed code text
 
 **Response:**
 ```json
@@ -453,22 +198,19 @@ bun run scripts/add-instagram-embed.ts --location-id 1 --embed-file embed.html
 }
 ```
 
-### POST /api/add-upload
-Uploads files to an existing location.
+---
+
+## POST /api/add-upload/:id
 
 **Request Type:** `multipart/form-data`
 
 **Form Fields:**
-- Required: `locationId` (numeric ID of an existing location), `files` (one or more files)
-- Optional: `photographerCredit` (text attribution for the photographer, can be empty)
-- Note: The field `parentId` is also accepted for backward compatibility, but `locationId` is preferred
-- Validation: Only JPEG, PNG, WebP, and GIF files are accepted; max 10MB per file; max 50MB per request; up to 20 files per upload. An empty file list is rejected.
-- Behavior: Files are stored under `src/data/images/{location}/uploads/{timestamp}/image_{n}.{ext}` and the saved paths are echoed in the response.
+- `files` (required): One or more image files (JPEG, PNG, WebP, GIF)
+- `photographerCredit` (optional): Text attribution
 
-**Example Request:**
+**Example:**
 ```bash
-curl -X POST http://localhost:3000/api/add-upload \
-  -F "locationId=1" \
+curl -X POST http://localhost:3000/api/add-upload/1 \
   -F "photographerCredit=Jane Doe Photography" \
   -F "files=@/path/to/image1.jpg" \
   -F "files=@/path/to/image2.jpg"
@@ -490,19 +232,16 @@ curl -X POST http://localhost:3000/api/add-upload \
 }
 ```
 
-**Note:** If `photographerCredit` is not provided or is an empty string, the field will be `null` in the response.
+---
 
-### POST /api/open-folder
-Opens a folder in the system's file explorer.
+## POST /api/open-folder
 
-**Request Body:**
+**Request:**
 ```json
 {
   "folderPath": "/path/to/folder"
 }
 ```
-
-- Required: `folderPath` (path must resolve inside the server's working directory; absolute or escaping paths are rejected)
 
 **Response:**
 ```json
@@ -511,8 +250,9 @@ Opens a folder in the system's file explorer.
 }
 ```
 
-### GET /api/clear-db
-Clears all location data from the database (locations, instagram_embeds, and uploads tables). This endpoint also clears the legacy unified table if it exists, and runs VACUUM to reclaim disk space.
+---
+
+## GET /api/clear-db
 
 **Response:**
 ```json
@@ -522,20 +262,9 @@ Clears all location data from the database (locations, instagram_embeds, and upl
 }
 ```
 
-**Error Response:**
-```json
-{
-  "success": false,
-  "error": "Error message"
-}
-```
+---
 
-**Note:** This operation cannot be undone. Use with caution. File system images are NOT deleted - only database records are removed.
-
-## Location Hierarchy Endpoints
-
-### GET /api/location-hierarchy (legacy: /api/location-taxonomy)
-Retrieves all location hierarchy entries (countries, cities, neighborhoods).
+## GET /api/location-hierarchy
 
 **Response:**
 ```json
@@ -552,8 +281,9 @@ Retrieves all location hierarchy entries (countries, cities, neighborhoods).
 }
 ```
 
-### GET /api/location-hierarchy/countries (legacy: /api/location-taxonomy/countries)
-Retrieves all available countries.
+---
+
+## GET /api/location-hierarchy/countries
 
 **Response:**
 ```json
@@ -579,13 +309,9 @@ Retrieves all available countries.
 }
 ```
 
-### GET /api/location-hierarchy/cities/:country (legacy: /api/location-taxonomy/cities/:country)
-Retrieves all cities for a specific country.
+---
 
-**Parameters:**
-- Required path param `country`: Country code/slug (e.g., "colombia", "peru")
-
-**Example:** `GET /api/location-hierarchy/cities/colombia`
+## GET /api/location-hierarchy/cities/:country
 
 **Response:**
 ```json
@@ -605,13 +331,9 @@ Retrieves all cities for a specific country.
 }
 ```
 
-### GET /api/location-hierarchy/neighborhoods/:country/:city (legacy: /api/location-taxonomy/neighborhoods/:country/:city)
-Retrieves all neighborhoods for a specific city and country.
+---
 
-**Parameters:**
-- Required path params: `country` (e.g., "colombia"), `city` (e.g., "bogota")
-
-**Example:** `GET /api/location-hierarchy/neighborhoods/colombia/bogota`
+## GET /api/location-hierarchy/neighborhoods/:country/:city
 
 **Response:**
 ```json
@@ -624,61 +346,3 @@ Retrieves all neighborhoods for a specific city and country.
   ]
 }
 ```
-
-## Static File Serving
-
-### GET /src/data/images/*
-Serves uploaded images and other static files from the data directory.
-
-**Example:** `GET /src/data/images/uploads/123456789/image_0.jpg`
-
-**Response:** Image file or 404 if not found
-
-## Error Responses
-
-All endpoints may return error responses in the following format:
-
-**Standard Error Response (HttpError):**
-```json
-{
-  "success": false,
-  "error": "Error message description",
-  "code": "VALIDATION_ERROR",
-  "details": {
-    "field": "fieldName",
-    "value": "invalidValue"
-  }
-}
-```
-
-**Simple Error Response (Unknown Errors):**
-```json
-{
-  "success": false,
-  "error": "Error message description"
-}
-```
-
-**Field Descriptions:**
-- `success`: Always `false` for error responses
-- `error`: Human-readable error message
-- `code`: Optional error code for client-side error handling (only present for HttpError instances)
-- `details`: Optional additional context about the error (only present when error provides details)
-
-Common HTTP status codes:
-- `400`: Bad Request (validation errors, missing required fields, invalid formats)
-- `404`: Not Found (resource doesn't exist)
-- `500`: Internal Server Error
-
-## Categories
-
-### Location Categories
-- `dining`
-- `accommodations`
-- `attractions`
-- `nightlife`
-
-## Environment Variables
-
-- `GOOGLE_MAPS_API_KEY`: Required for geocoding functionality when adding/updating maps locations
-- `PORT`: Server port (defaults to 3000)

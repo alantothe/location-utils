@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+// URL parameter schema for /api/add-upload/:id
+export const addUploadParamsSchema = z.object({
+  id: z.coerce.number().int().positive("Valid location ID required")
+});
+
+export type AddUploadParamsDto = z.infer<typeof addUploadParamsSchema>;
+
 const ALLOWED_MIME_TYPES = [
   "image/jpeg",
   "image/png",
@@ -23,7 +30,7 @@ export const uploadFileSchema = z.custom<File>(
 );
 
 export const uploadFormDataSchema = z.object({
-  locationId: z.string().transform((val) => Number(val)),
+  // locationId removed - now comes from URL parameter (:id)
   photographerCredit: z.string().trim().optional().nullable(),
   files: z.array(uploadFileSchema)
     .min(1, "At least one file required")

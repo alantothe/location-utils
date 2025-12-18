@@ -169,12 +169,12 @@ async function main() {
   }
 
   const apiUrl = args["api-url"] || "http://localhost:3000";
-  const endpoint = `${apiUrl}/api/add-upload`;
+  const endpoint = `${apiUrl}/api/add-upload/${locationId}`;
   console.log(`Uploading ${files.length} file(s) to location ${locationId}...`);
   console.log(`API endpoint: ${endpoint}`);
 
   const formData = new FormData();
-  formData.set("locationId", locationId.toString());
+  // locationId is now in URL, not form data
   for (const file of files) {
     formData.append("files", file);
   }

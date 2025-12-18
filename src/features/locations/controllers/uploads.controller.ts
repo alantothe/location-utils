@@ -2,7 +2,7 @@ import type { Context } from "hono";
 import { ServiceContainer } from "../container/service-container";
 import { successResponse } from "../../../shared/core/types/api-response";
 import { BadRequestError } from "../../../shared/core/errors/http-error";
-import { MAX_FILE_SIZE, MAX_FILES, MAX_TOTAL_SIZE } from "../validation/schemas/uploads.schemas";
+import { MAX_FILE_SIZE, MAX_FILES, MAX_TOTAL_SIZE, type AddUploadParamsDto } from "../validation/schemas/uploads.schemas";
 
 const container = ServiceContainer.getInstance();
 
@@ -11,13 +11,9 @@ const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"
 export async function postAddUpload(c: Context) {
   const formData = await c.req.formData();
 
-  // Parse location ID
-  const idRaw = formData.get("locationId") || formData.get("parentId");
-  const locationId = typeof idRaw === "string" ? Number(idRaw) : Number(idRaw?.toString());
-
-  if (!locationId || isNaN(locationId)) {
-    throw new BadRequestError("Valid location ID required");
-  }
+  // Extract validated URL parameter
+  const params = c.get("validatedParams") as AddUploadParamsDto;
+  const locationId = params.id;
 
   // Parse photographer credit
   const photographerCredit = formData.get("photographerCredit");

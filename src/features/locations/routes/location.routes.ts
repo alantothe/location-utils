@@ -2,6 +2,7 @@ import { app } from "../../../shared/http/server";
 import { validateBody, validateParams, validateQuery } from "../../../shared/core/middleware/validation.middleware";
 import { createMapsSchema, patchMapsSchema } from "../validation/schemas/maps.schemas";
 import { addInstagramSchema, addInstagramParamsSchema } from "../validation/schemas/instagram.schemas";
+import { addUploadParamsSchema } from "../validation/schemas/uploads.schemas";
 import { listLocationsQuerySchema } from "../validation/schemas/locations.schemas";
 
 // Import new controllers
@@ -9,7 +10,7 @@ import { getLocations } from "../controllers/locations.controller";
 import { postAddMaps, patchMapsById } from "../controllers/maps.controller";
 import { postAddInstagram } from "../controllers/instagram.controller";
 import { postAddUpload } from "../controllers/uploads.controller";
-import { postOpenFolder, serveImage } from "../controllers/files.controller";
+import { serveImage } from "../controllers/files.controller";
 import {
   getLocationHierarchy,
   getCountries,
@@ -28,8 +29,11 @@ app.post(
   validateBody(addInstagramSchema),
   postAddInstagram
 );
-app.post("/api/add-upload", postAddUpload); // Note: validation handled in controller due to multipart form
-app.post("/api/open-folder", postOpenFolder);
+app.post(
+  "/api/add-upload/:id",
+  validateParams(addUploadParamsSchema),
+  postAddUpload
+);
 app.get("/api/clear-db", clearDatabase);
 
 // Location hierarchy API routes (legacy taxonomy paths kept for compatibility)
