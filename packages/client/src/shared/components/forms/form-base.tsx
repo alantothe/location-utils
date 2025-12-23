@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Controller, type Control, type ControllerRenderProps, type ControllerFieldState } from "react-hook-form";
-import { Field, FieldLabel, FieldDescription, FieldError, FieldContent } from "@client/components/ui/field";
+import { Field, FieldLabel, FieldDescription, FieldError, FieldContent } from "../ui/field";
 
 export interface FormBaseProps {
   name: string;

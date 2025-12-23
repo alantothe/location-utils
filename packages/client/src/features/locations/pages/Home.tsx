@@ -1,4 +1,4 @@
-import { useLocations } from "../features/api";
+import { useLocations } from "../../api";
 
 export function Home() {
   const { data, isLoading, error, refetch } = useLocations();

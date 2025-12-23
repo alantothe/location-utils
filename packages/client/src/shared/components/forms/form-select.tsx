@@ -1,6 +1,6 @@
 import * as React from "react";
 import { type Control } from "react-hook-form";
-import { Select, SelectTrigger, SelectValue, SelectContent } from "@client/components/ui/select";
+import { Select, SelectTrigger, SelectValue, SelectContent } from "../ui/select";
 import { FormBase } from "./form-base";
 
 export interface FormSelectProps {

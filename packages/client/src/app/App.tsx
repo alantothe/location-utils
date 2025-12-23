@@ -1,8 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { Navbar } from "./components/Navbar";
-import { Home } from "./pages/Home";
-import { AddLocation } from "./pages/AddLocation";
-import "./App.css";
+import { Navbar } from "../shared/components/layout/Navbar";
+import { Home, AddLocation } from "../features/locations";
+import "../App.css";
 
 function App() {
   return (
