@@ -17,6 +17,9 @@
 // API services
 export { locationsApi, hierarchyApi, filesApi } from "./api";
 
+// React Query hooks
+export * from "./hooks";
+
 // HTTP client and utilities
 export { ApiError, unwrapEntry } from "./client";
 export type { ApiResponse } from "./client";

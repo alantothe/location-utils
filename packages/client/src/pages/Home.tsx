@@ -1,35 +1,10 @@
-import { useState, useEffect } from "react";
-import { locationsApi, ApiError } from "../features/api";
-import type { Location } from "../features/api";
+import { useLocations } from "../features/api";
 
 export function Home() {
-  const [locations, setLocations] = useState<Location[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data, isLoading, error, refetch } = useLocations();
+  const locations = data?.locations ?? [];
 
-  useEffect(() => {
-    fetchLocations();
-  }, []);
-
-  async function fetchLocations() {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await locationsApi.getLocations();
-      setLocations(response.locations);
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(`Error ${err.status}: ${err.message}`);
-      } else {
-        setError("Failed to fetch locations");
-      }
-      console.error("Error fetching locations:", err);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div>
         <h1>Welcome to Location Manager</h1>
@@ -42,8 +17,8 @@ export function Home() {
     return (
       <div>
         <h1>Welcome to Location Manager</h1>
-        <p style={{ color: "red" }}>Error: {error}</p>
-        <button onClick={fetchLocations}>Retry</button>
+        <p style={{ color: "red" }}>Error: {error.message}</p>
+        <button onClick={() => refetch()}>Retry</button>
       </div>
     );
   }
