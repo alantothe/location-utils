@@ -76,9 +76,11 @@ export function Home() {
                 <p style={{ margin: "0.5rem 0", color: "#2c2c2c" }}>
                   <strong>Category:</strong> {location.category}
                 </p>
-                <p style={{ margin: "0.5rem 0", color: "#2c2c2c" }}>
-                  <strong>Location:</strong> {location.locationKey.split("|").join(" > ")}
-                </p>
+                {location.locationKey && (
+                  <p style={{ margin: "0.5rem 0", color: "#2c2c2c" }}>
+                    <strong>Location:</strong> {location.locationKey.split("|").join(" > ")}
+                  </p>
+                )}
                 <p style={{ margin: "0.5rem 0", color: "#2c2c2c" }}>
                   <strong>Address:</strong> {location.contact.contactAddress}
                 </p>
