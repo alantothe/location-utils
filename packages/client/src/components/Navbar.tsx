@@ -10,12 +10,6 @@ export function Navbar() {
         </Link>
         <ul className="navbar-menu">
           <li>
-            <Link to="/">Home</Link>
-          </li>
-          <li>
-            <Link to="/locations">Locations</Link>
-          </li>
-          <li>
             <Link to="/add">Add Location</Link>
           </li>
         </ul>
