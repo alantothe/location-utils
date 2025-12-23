@@ -1,7 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Navbar } from "./components/Navbar";
 import { Home } from "./pages/Home";
-import { Locations } from "./pages/Locations";
 import { AddLocation } from "./pages/AddLocation";
 import "./App.css";
 
@@ -13,7 +12,6 @@ function App() {
         <main className="main-content">
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/locations" element={<Locations />} />
             <Route path="/add" element={<AddLocation />} />
           </Routes>
         </main>

@@ -1,11 +1,12 @@
 import { z } from "zod";
+import type { LocationCategory } from "@shared/types/location-category";
 
 export const locationCategorySchema = z.enum([
   "dining",
   "accommodations",
   "attractions",
   "nightlife"
-]);
+] as const satisfies readonly LocationCategory[]);
 
 export const createMapsSchema = z.object({
   name: z.string().trim().min(1, "Name is required"),

@@ -27,6 +27,18 @@ cd packages/client && bun run dev
 cd packages/server
 bun run seed:locations       # Seed location hierarchy
 bun run test:locations       # Test location utilities
+
+# Client commands
+cd packages/client
+bun run build                # Build for production
+bun run lint                 # Run ESLint
+bun run preview              # Preview production build
+```
+
+**Build for production:**
+```bash
+bun run build                # Builds all packages via Turborepo
+bun run clean                # Clean build artifacts
 ```
 
 **Environment:**
@@ -89,7 +101,52 @@ packages/server/src/features/locations/
 └── scripts/             # Runnable scripts (seed, test)
 ```
 
-### Shared Code
+### Frontend Architecture (Client)
+
+The client package uses Vite + React (not Bun's built-in HTML imports):
+- **React 19** with React Router for routing
+- **TanStack Query (React Query)** for server state management and API caching
+- **Zustand** for client-side state management
+- **Vite** for build tooling, dev server, and HMR
+- Client runs on port 5173 with proxy to backend on port 3000 (configured in `vite.config.ts`)
+
+**Note:** While Bun supports serving frontends via `Bun.serve()` with HTML imports, this project intentionally uses Vite for the client package to leverage its mature ecosystem, fast HMR, and plugin system.
+
+**UI Components:**
+- **Shadcn UI** - Uses the new Field-based component system (not the deprecated Form component)
+- **Tailwind CSS v4** - Utility-first CSS framework
+- **Radix UI** - Headless UI primitives for accessibility
+- **React Hook Form** - Form state management with Zod validation
+- Components configured in `components.json` with path aliases (`@client/components`, `@client/lib/utils`)
+
+**Form Patterns:**
+- Use reusable form components in `src/components/forms/` (`FormBase`, `FormInput`, `FormSelect`)
+- Follow Shadcn's Field API with `<Field>`, `<FieldLabel>`, `<FieldError>`, `<FieldContent>`
+- Integrate with React Hook Form using `<Controller>` pattern
+- See `docs/shadcn-field-migration-guide.md` for detailed form implementation patterns
+
+**Client File Structure:**
+```
+packages/client/src/
+├── components/
+│   ├── forms/          # Reusable form wrappers (FormInput, FormSelect, FormBase)
+│   └── ui/             # Shadcn UI components (button, input, select, field, label)
+├── features/           # Feature-specific components and logic
+│   └── locations/      # Location-related features
+├── lib/                # Utility functions (cn, utils)
+├── pages/              # Route pages (Home, AddLocation, etc.)
+└── index.css           # Tailwind directives and global styles
+```
+
+### Shared Package
+
+The `shared` package (`packages/shared`) contains common TypeScript types and utilities used by both server and client:
+- Exported via `packages/shared/src/index.ts`
+- Consumed as `@url-util/shared` workspace dependency
+- No build step - TypeScript files imported directly
+- Keep shared code minimal and framework-agnostic
+
+### Shared Code (Server)
 ```
 packages/server/src/shared/
 ├── http/                # Hono server instance with error handling
@@ -181,6 +238,21 @@ packages/server/src/data/locations/
 - Kebab-case for filenames (`location-utils.ts`, `maps.service.ts`)
 - Keep feature folders cohesive: controller → service → repository → model/util
 - Avoid cross-feature imports unless shared
+
+## Working with Shadcn UI
+
+**Adding new components:**
+```bash
+cd packages/client
+npx shadcn@latest add <component-name>
+```
+
+**Key points:**
+- Components are added to `src/components/ui/` and can be customized
+- Use the Field API for forms (not the deprecated Form component)
+- Tailwind CSS v4 is configured with `@tailwindcss/postcss`
+- Path aliases are configured: `@client/components`, `@client/lib/utils`, `@client/components/ui`
+- The `cn()` utility in `src/lib/utils.ts` merges Tailwind classes properly
 
 ## Architecture Improvements (December 2025 Refactoring)
 

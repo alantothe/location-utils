@@ -1,4 +1,4 @@
-import type { LocationCategory } from "../models/location";
+import type { LocationCategory } from "@shared/types/location-category";
 
 export const VALID_CATEGORIES: readonly LocationCategory[] = [
   "dining",

@@ -66,7 +66,6 @@ export async function geocode(address: string, apiKey?: string): Promise<Geocode
     const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`;
     const response = await fetch(url);
     const data = await response.json() as GeocodeResponse;
-    console.log("Geocode full response:", JSON.stringify(data, null, 2));
 
     if (data.status === "OK" && data.results && data.results.length > 0) {
       const result = data.results[0];
@@ -116,7 +115,6 @@ export async function getPlaceDetails(name: string, address: string, apiKey?: st
 
     const searchResponse = await fetch(searchUrl);
     const searchData = await searchResponse.json() as PlacesApiResponse;
-    console.log("Places Text Search full response:", JSON.stringify(searchData, null, 2));
 
     if (searchData.status === "OK" && searchData.results && searchData.results.length > 0) {
       const placeId = searchData.results[0]!.place_id;
@@ -126,7 +124,6 @@ export async function getPlaceDetails(name: string, address: string, apiKey?: st
 
       const detailsResponse = await fetch(detailsUrl);
       const detailsData = await detailsResponse.json() as PlacesApiResponse;
-      console.log("Places Details full response:", JSON.stringify(detailsData, null, 2));
 
       if (detailsData.status === "OK" && detailsData.result) {
         return detailsData.result;
@@ -165,8 +162,6 @@ export async function reverseGeocodeWithBigDataCloud(
       locality: data.locality || "",
       locationKey
     };
-
-    console.log("BigDataCloud Filtered Data:", filteredData);
 
     return filteredData;
   } catch (error) {

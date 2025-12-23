@@ -1,28 +1,29 @@
-import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { addLocationSchema, type AddLocationFormData } from "@client/features/locations/validation/add-location.schema";
 import { useCreateLocation } from "../features/api";
-import type { Category } from "../features/api/types";
+import { FormInput, FormSelect } from "@client/components/forms";
+import { SelectItem } from "@client/components/ui/select";
+import { Button } from "@client/components/ui/button";
 
 export function AddLocation() {
-  const [name, setName] = useState("");
-  const [address, setAddress] = useState("");
-  const [category, setCategory] = useState<Category>("dining");
-
   const { mutate, isPending, isSuccess, error } = useCreateLocation();
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  const form = useForm<AddLocationFormData>({
+    resolver: zodResolver(addLocationSchema as any),
+    defaultValues: {
+      name: "",
+      address: "",
+      category: "dining",
+    },
+  });
 
-    mutate(
-      { name, address, category },
-      {
-        onSuccess: () => {
-          // Reset form
-          setName("");
-          setAddress("");
-          setCategory("dining");
-        },
-      }
-    );
+  function handleSubmit(data: AddLocationFormData) {
+    mutate(data, {
+      onSuccess: () => {
+        form.reset();
+      },
+    });
   }
 
   return (
@@ -30,102 +31,49 @@ export function AddLocation() {
       <h1>Add Location</h1>
       <p>Add a new location with Google Maps or Instagram.</p>
 
-      <form onSubmit={handleSubmit} style={{ marginTop: "2rem", maxWidth: "600px" }}>
-        <div style={{ marginBottom: "1.5rem" }}>
-          <label htmlFor="name" style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>
-            Name
-          </label>
-          <input
-            type="text"
-            id="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Location Name"
-            style={{
-              width: "100%",
-              padding: "0.75rem",
-              fontSize: "1rem",
-              border: "1px solid #333",
-              borderRadius: "4px",
-              backgroundColor: "#1a1a1a",
-              color: "#fff"
-            }}
-          />
-        </div>
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="mt-8 max-w-2xl space-y-6">
+        <FormInput
+          name="name"
+          label="Name"
+          control={form.control}
+          placeholder="Location Name"
+        />
 
-        <div style={{ marginBottom: "1.5rem" }}>
-          <label htmlFor="address" style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>
-            Address
-          </label>
-          <input
-            type="text"
-            id="address"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            placeholder="123 Main St, City, State, Country"
-            style={{
-              width: "100%",
-              padding: "0.75rem",
-              fontSize: "1rem",
-              border: "1px solid #333",
-              borderRadius: "4px",
-              backgroundColor: "#1a1a1a",
-              color: "#fff"
-            }}
-          />
-        </div>
+        <FormInput
+          name="address"
+          label="Address"
+          control={form.control}
+          placeholder="123 Main St, City, State, Country"
+        />
 
-        <div style={{ marginBottom: "1.5rem" }}>
-          <label htmlFor="category" style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>
-            Category
-          </label>
-          <select
-            id="category"
-            value={category}
-            onChange={(e) => setCategory(e.target.value as Category)}
-            style={{
-              width: "100%",
-              padding: "0.75rem",
-              fontSize: "1rem",
-              border: "1px solid #333",
-              borderRadius: "4px",
-              backgroundColor: "#1a1a1a",
-              color: "#fff"
-            }}
-          >
-            <option value="dining">Dining</option>
-            <option value="accommodations">Accommodations</option>
-            <option value="attractions">Attractions</option>
-            <option value="nightlife">Nightlife</option>
-          </select>
-        </div>
+        <FormSelect
+          name="category"
+          label="Category"
+          control={form.control}
+          placeholder="Select a category"
+        >
+          <SelectItem value="dining">Dining</SelectItem>
+          <SelectItem value="accommodations">Accommodations</SelectItem>
+          <SelectItem value="attractions">Attractions</SelectItem>
+          <SelectItem value="nightlife">Nightlife</SelectItem>
+        </FormSelect>
 
-        <button
+        <Button
           type="submit"
-          disabled={isPending || !name || !address}
-          style={{
-            padding: "0.75rem 1.5rem",
-            fontSize: "1rem",
-            fontWeight: "500",
-            border: "none",
-            borderRadius: "4px",
-            backgroundColor: isPending || !name || !address ? "#555" : "#646cff",
-            color: "#fff",
-            cursor: isPending || !name || !address ? "not-allowed" : "pointer",
-            transition: "background-color 0.3s"
-          }}
+          disabled={isPending || !form.formState.isValid}
+          className="w-full sm:w-auto"
         >
           {isPending ? "Adding Location..." : "Add Location"}
-        </button>
+        </Button>
 
         {error && (
-          <div style={{ color: "red", marginTop: "1rem", padding: "0.75rem", backgroundColor: "rgba(255, 0, 0, 0.1)", borderRadius: "4px" }}>
+          <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
             Error: {error.message}
           </div>
         )}
 
         {isSuccess && (
-          <div style={{ color: "green", marginTop: "1rem", padding: "0.75rem", backgroundColor: "rgba(0, 255, 0, 0.1)", borderRadius: "4px" }}>
+          <div className="rounded-md bg-green-500/10 p-3 text-sm text-green-500">
             Location added successfully!
           </div>
         )}

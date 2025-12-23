@@ -36,15 +36,11 @@ app.post(
 );
 app.get("/api/clear-db", clearDatabase);
 
-// Location hierarchy API routes (legacy taxonomy paths kept for compatibility)
+// Location hierarchy API routes
 app.get("/api/location-hierarchy", getLocationHierarchy);
 app.get("/api/location-hierarchy/countries", getCountries);
 app.get("/api/location-hierarchy/cities/:country", getCitiesByCountry);
 app.get("/api/location-hierarchy/neighborhoods/:country/:city", getNeighborhoodsByCity);
-app.get("/api/location-taxonomy", getLocationHierarchy);
-app.get("/api/location-taxonomy/countries", getCountries);
-app.get("/api/location-taxonomy/cities/:country", getCitiesByCountry);
-app.get("/api/location-taxonomy/neighborhoods/:country/:city", getNeighborhoodsByCity);
 
 // Serve uploaded images
 app.get("/api/images/*", serveImage);
