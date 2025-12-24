@@ -1,19 +1,20 @@
 #!/usr/bin/env bun
 
-import { getLocations } from "./src/features/locations/controllers/locations.controller";
-import { patchMapsById } from "./src/features/locations/controllers/maps.controller";
-import { serveImage } from "./src/features/locations/controllers/files.controller";
+import { getLocations, getLocationsBasic } from "./packages/server/src/features/locations/controllers/locations.controller";
+import { patchMapsById } from "./packages/server/src/features/locations/controllers/maps.controller";
+import { serveImage } from "./packages/server/src/features/locations/controllers/files.controller";
 import {
   getLocationHierarchy,
   getCountries,
   getCitiesByCountry,
   getNeighborhoodsByCity,
-} from "./src/features/locations/controllers/hierarchy.controller";
+} from "./packages/server/src/features/locations/controllers/hierarchy.controller";
 
 console.log("🚀 Testing URL Util Routes\n");
 
 // Mock Hono Context for testing
 function mockContext(params: Record<string, string> = {}, body?: any) {
+  const contextData: Record<string, any> = {};
   return {
     req: {
       param: (key: string) => params[key],
@@ -28,6 +29,8 @@ function mockContext(params: Record<string, string> = {}, body?: any) {
       console.log(`    📄 Response (${status}):`, text);
       return { status, text };
     },
+    get: (key: string) => contextData[key],
+    set: (key: string, value: any) => { contextData[key] = value; },
   };
 }
 
@@ -53,14 +56,18 @@ async function testRoute(name: string, handler: Function, context: any, expected
 console.log("📍 Testing Location Routes:");
 
 // Test GET /api/locations
-await testRoute("GET /api/locations", getLocations, mockContext());
+const locationsContext = mockContext();
+locationsContext.set("validatedQuery", {});
+await testRoute("GET /api/locations", getLocations, locationsContext);
+
+// Test GET /api/locations-basic
+const locationsBasicContext = mockContext();
+locationsBasicContext.set("validatedQuery", {});
+await testRoute("GET /api/locations-basic", getLocationsBasic, locationsBasicContext);
 
 // Test PATCH /api/maps/:id (non-existent ID to test error handling)
 const patchContext = mockContext({ id: "99999" }, { title: "Updated Title" });
-// Add required methods for the controller
-(patchContext as any).set = (key: string, value: any) => { (patchContext as any)[key] = value; };
-(patchContext as any).get = (key: string) => (patchContext as any)[key];
-(patchContext as any).validatedBody = { title: "Updated Title" };
+patchContext.set("validatedBody", { title: "Updated Title" });
 await testRoute("PATCH /api/maps/99999 (non-existent)", patchMapsById, patchContext, 404);
 
 // Test Location Hierarchy Routes

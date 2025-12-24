@@ -15,6 +15,15 @@ export function getLocations(c: Context) {
   return c.json({ locations, cwd });
 }
 
+export function getLocationsBasic(c: Context) {
+  const query = c.get("validatedQuery") as ListLocationsQueryDto | undefined;
+  const locations = container.locationQueryService.listLocationsBasic(
+    query?.category,
+    query?.locationKey
+  );
+  return c.json({ locations });
+}
+
 export function deleteLocationBySlug(c: Context) {
   const dto = c.get("validatedParams") as DeleteLocationSlugDto;
 

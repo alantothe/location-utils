@@ -6,7 +6,7 @@ import { addUploadParamsSchema } from "../validation/schemas/uploads.schemas";
 import { listLocationsQuerySchema, deleteLocationSlugSchema } from "../validation/schemas/locations.schemas";
 
 // Import new controllers
-import { getLocations, deleteLocationBySlug } from "../controllers/locations.controller";
+import { getLocations, getLocationsBasic, deleteLocationBySlug } from "../controllers/locations.controller";
 import { postAddMaps, patchMapsById } from "../controllers/maps.controller";
 import { postAddInstagram } from "../controllers/instagram.controller";
 import { postAddUpload } from "../controllers/uploads.controller";
@@ -21,6 +21,7 @@ import { clearDatabase } from "../controllers/admin.controller";
 
 // Location routes
 app.get("/api/locations", validateQuery(listLocationsQuerySchema), getLocations);
+app.get("/api/locations-basic", validateQuery(listLocationsQuerySchema), getLocationsBasic);
 app.delete("/api/locations/:slug", validateParams(deleteLocationSlugSchema), deleteLocationBySlug);
 app.post("/api/add-maps", validateBody(createMapsSchema), postAddMaps);
 app.patch("/api/maps/:id", validateBody(patchMapsSchema), patchMapsById);

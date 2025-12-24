@@ -130,3 +130,13 @@ export interface LocationResponse {
   slug: string | null;
   created_at: string;
 }
+
+/**
+ * Basic location info for lightweight API responses
+ */
+export interface LocationBasic {
+  id: number;
+  name: string;
+  location: string | null;
+  category: LocationCategory;
+}

@@ -4,7 +4,9 @@ import type {
   CityData,
   NeighborhoodData,
   LocationWithNested,
-  LocationResponse
+  LocationResponse,
+  Location,
+  LocationBasic
 } from '../models/location';
 
 /**
@@ -203,5 +205,19 @@ export function transformLocationToResponse(location: LocationWithNested): Locat
     uploads: location.uploads || [],
     slug: location.slug || null,
     created_at: location.created_at || new Date().toISOString(),
+  };
+}
+
+/**
+ * Transform a location to basic response format with only essential info
+ * @param location - Location object
+ * @returns Basic location info with name and location
+ */
+export function transformLocationToBasicResponse(location: Location): LocationBasic {
+  return {
+    id: location.id!,
+    name: location.name,
+    location: location.locationKey || null,
+    category: location.category || 'attractions',
   };
 }

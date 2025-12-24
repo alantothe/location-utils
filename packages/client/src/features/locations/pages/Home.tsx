@@ -1,6 +1,7 @@
 import { useLocations, useDeleteLocation } from "@client/shared/services/api";
 import { useAlert } from "@client/shared/hooks";
 import { DeleteButton } from "@client/shared/components/ui";
+import { formatLocationHierarchy } from "@client/shared/lib/utils";
 
 export function Home() {
   const { data, isLoading, error, refetch } = useLocations();
@@ -81,7 +82,7 @@ export function Home() {
                 </p>
                 {location.locationKey && (
                   <p style={{ margin: "0.5rem 0", color: "#2c2c2c" }}>
-                    <strong>Location:</strong> {location.locationKey.split("|").join(" > ")}
+                    <strong>Location:</strong> {formatLocationHierarchy(location.locationKey)}
                   </p>
                 )}
                 <p style={{ margin: "0.5rem 0", color: "#2c2c2c" }}>

@@ -1,8 +1,8 @@
-import type { LocationWithNested, LocationResponse } from "../models/location";
+import type { LocationWithNested, LocationResponse, LocationBasic } from "../models/location";
 import { getAllLocations, getLocationsByCategory } from "../repositories/location.repository";
 import { getAllInstagramEmbeds } from "../repositories/instagram-embed.repository";
 import { getAllUploads } from "../repositories/upload.repository";
-import { transformLocationToResponse, isLocationInScope } from "../utils/location-utils";
+import { transformLocationToResponse, transformLocationToBasicResponse, isLocationInScope } from "../utils/location-utils";
 
 export class LocationQueryService {
   listLocations(category?: string, locationKey?: string): LocationResponse[] {
@@ -31,5 +31,22 @@ export class LocationQueryService {
 
     // Step 5: Transform to LocationResponse format
     return locationsWithNested.map(transformLocationToResponse);
+  }
+
+  listLocationsBasic(category?: string, locationKey?: string): LocationBasic[] {
+    // Step 1: Apply category filter at SQL level (efficient)
+    let locations = category
+      ? getLocationsByCategory(category)
+      : getAllLocations();
+
+    // Step 2: Apply locationKey filter in-memory using isLocationInScope utility
+    if (locationKey) {
+      locations = locations.filter(
+        (loc) => loc.locationKey && isLocationInScope(loc.locationKey, locationKey)
+      );
+    }
+
+    // Step 3: Transform to basic LocationBasic format
+    return locations.map(transformLocationToBasicResponse);
   }
 }

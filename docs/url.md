@@ -6,6 +6,7 @@ Base URL: `http://localhost:3000`
 
 ### Location Management
 - `GET /api/locations` - List all locations
+- `GET /api/locations-basic` - List locations with basic info only
 - `POST /api/add-maps` - Create maps location
 - `PATCH /api/maps/:id` - Update maps location
 - `POST /api/add-instagram/:id` - Add Instagram embed
@@ -68,6 +69,38 @@ GET /api/locations?category=dining&locationKey=colombia|bogota
     }
   ],
   "cwd": "/current/working/directory"
+}
+```
+
+---
+
+## GET /api/locations-basic
+
+List all locations with only basic information (name and location).
+
+**Query Parameters:**
+- `category` (optional): `dining` | `accommodations` | `attractions` | `nightlife`
+- `locationKey` (optional): `country` or `country|city` or `country|city|neighborhood`
+
+**Examples:**
+```bash
+GET /api/locations-basic
+GET /api/locations-basic?category=dining
+GET /api/locations-basic?locationKey=colombia|bogota
+GET /api/locations-basic?category=dining&locationKey=colombia|bogota
+```
+
+**Response:**
+```json
+{
+  "locations": [
+    {
+      "id": 1,
+      "name": "Panchita - Miraflores",
+      "location": "peru|lima|miraflores",
+      "category": "dining"
+    }
+  ]
 }
 ```
 
