@@ -1,9 +1,13 @@
 import { useLocationsBasic } from "@client/shared/services/api";
-import { formatLocationHierarchy } from "@client/shared/lib/utils";
+import { LocationList, LocationListEmpty } from "../components/list";
 
 export function Home() {
   const { data, isLoading, error, refetch } = useLocationsBasic();
-  const locations = data?.locations ?? [];
+  const locations = (data?.locations ?? []).map(location => ({
+    ...location,
+    location: location.location ?? undefined,
+    category: location.category
+  }));
 
   if (isLoading) {
     return (
@@ -33,35 +37,9 @@ export function Home() {
         <h2>All Locations ({locations.length})</h2>
 
         {locations.length === 0 ? (
-          <p>No locations found. Add your first location to get started!</p>
+          <LocationListEmpty />
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-            {locations.map((location) => (
-              <div
-                key={location.id}
-                style={{
-                  border: "1px solid #ddd",
-                  borderRadius: "6px",
-                  padding: "0.75rem",
-                  backgroundColor: "#ffffff"
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontWeight: "500", color: "#1a1a1a" }}>
-                    {location.name}
-                  </span>
-                  <span style={{ fontSize: "0.875rem", color: "#666", textTransform: "capitalize" }}>
-                    {location.category}
-                  </span>
-                </div>
-                {location.location && (
-                  <p style={{ margin: "0.25rem 0 0 0", fontSize: "0.875rem", color: "#666" }}>
-                    {formatLocationHierarchy(location.location)}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
+          <LocationList locations={locations} />
         )}
       </div>
     </div>
