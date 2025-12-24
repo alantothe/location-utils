@@ -3,7 +3,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { addLocationSchema, type AddLocationFormData } from "../validation/add-location.schema";
 import { useCreateLocation } from "@client/shared/services/api";
 import { FormInput, FormSelect } from "@client/shared/components/forms";
-import { SelectItem, Button } from "@client/components/ui";
+import { SelectItem } from "@client/components/ui";
+import { SubmitButton } from "@client/shared/components/ui";
 
 export function AddLocation() {
   const { mutate, isPending, isSuccess, error } = useCreateLocation();
@@ -57,13 +58,13 @@ export function AddLocation() {
           <SelectItem value="nightlife">Nightlife</SelectItem>
         </FormSelect>
 
-        <Button
-          type="submit"
-          disabled={isPending || !form.formState.isValid}
+        <SubmitButton
+          isLoading={isPending}
+          submitText="Add Location"
+          submittingText="Adding Location..."
+          disabled={!form.formState.isValid}
           className="w-full sm:w-auto"
-        >
-          {isPending ? "Adding Location..." : "Add Location"}
-        </Button>
+        />
 
         {error && (
           <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">

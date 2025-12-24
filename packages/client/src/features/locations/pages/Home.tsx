@@ -1,5 +1,6 @@
 import { useLocations, useDeleteLocation } from "@client/shared/services/api";
 import { useAlert } from "@client/shared/hooks";
+import { DeleteButton } from "@client/shared/components/ui";
 
 export function Home() {
   const { data, isLoading, error, refetch } = useLocations();
@@ -103,22 +104,13 @@ export function Home() {
                   Instagram embeds: {location.instagram_embeds.length} |
                   Uploads: {location.uploads.length}
                 </p>
-                <button
+                <DeleteButton
                   onClick={() => handleDeleteLocation(location.slug, location.title || location.source.name)}
-                  style={{
-                    marginTop: "1rem",
-                    padding: "0.5rem 1rem",
-                    backgroundColor: "#dc3545",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "4px",
-                    cursor: "pointer",
-                    fontSize: "0.875rem"
-                  }}
-                  disabled={deleteLocationMutation.isPending}
-                >
-                  {deleteLocationMutation.isPending ? "Deleting..." : "Delete Location"}
-                </button>
+                  isLoading={deleteLocationMutation.isPending}
+                  deleteText="Delete Location"
+                  deletingText="Deleting..."
+                  className="mt-4"
+                />
               </div>
             ))}
           </div>
