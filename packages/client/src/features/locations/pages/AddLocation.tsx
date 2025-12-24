@@ -29,8 +29,7 @@ export function AddLocation() {
   return (
     <div>
       <h1>Add Location</h1>
-      <p>Add a new location with Google Maps or Instagram.</p>
-
+ 
       <form onSubmit={form.handleSubmit(handleSubmit)} className="mt-8 max-w-2xl space-y-6">
         <FormInput
           name="name"

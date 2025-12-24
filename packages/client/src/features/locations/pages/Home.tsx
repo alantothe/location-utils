@@ -31,8 +31,6 @@ export function Home() {
   return (
     <div>
       <h1>Welcome to Location Manager</h1>
-      <p>Manage your locations with Google Maps and Instagram integration.</p>
-
       <div style={{ marginTop: "2rem" }}>
         <h2>All Locations ({locations.length})</h2>
 
