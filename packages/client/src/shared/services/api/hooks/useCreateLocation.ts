@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { locationsApi } from "../api";
+import { locationsApi } from "../locations.api";
 import { LOCATIONS_QUERY_KEY } from "./useLocations";
 import type { CreateMapsRequest } from "../types";
 

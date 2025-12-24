@@ -1,4 +1,4 @@
-import { useLocations } from "../../api";
+import { useLocations } from "@client/shared/services/api";
 
 export function Home() {
   const { data, isLoading, error, refetch } = useLocations();

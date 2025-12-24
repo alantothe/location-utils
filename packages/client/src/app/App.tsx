@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { Navbar } from "../shared/components/layout/Navbar";
-import { Home, AddLocation } from "../features/locations";
+import { Navbar } from "@client/shared/components/layout";
+import { Home, AddLocation } from "@client/features/locations";
 import "../App.css";
 
 function App() {
