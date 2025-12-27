@@ -33,8 +33,8 @@ export function LocationListItem({ location, onClick }: LocationListItemProps) {
       await navigator.clipboard.writeText(value);
       const rect = (e.target as HTMLElement).getBoundingClientRect();
       showToast('Copied', {
-        x: rect.left + rect.width / 2,
-        y: rect.top - 8, // Position above the element
+        x: rect.right,
+        y: rect.top + rect.height / 2, // Position to the right, vertically centered
       });
     } catch (error) {
       console.error('Failed to copy text: ', error);

@@ -28,13 +28,13 @@ export function Toast({ message, position, onClose }: ToastProps) {
 
   return createPortal(
     <div
-      className={`fixed z-50 px-3 py-2 bg-gray-800 text-white text-sm rounded-md shadow-lg pointer-events-none transition-all duration-200 ${
+      className={`fixed z-50 px-2 py-1 bg-gray-800 text-white text-xs rounded-sm shadow-lg pointer-events-none transition-all duration-200 ${
         isVisible ? "opacity-100 scale-100" : "opacity-0 scale-95"
       }`}
       style={{
         left: position.x,
         top: position.y,
-        transform: "translate(-50%, -100%)", // Center horizontally, appear above click position
+        transform: "translate(8px, -50%)", // Position to the right, vertically centered
       }}
     >
       {message}
