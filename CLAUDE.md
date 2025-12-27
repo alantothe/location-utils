@@ -23,10 +23,8 @@ cd packages/server && bun run dev
 # Client only (port 5173)
 cd packages/client && bun run dev
 
-# Server commands
-cd packages/server
-bun run seed:locations       # Seed location hierarchy
-bun run test:locations       # Test location utilities
+# Server only (port 3000)
+cd packages/server && bun run dev
 
 # Client commands
 cd packages/client
@@ -205,30 +203,33 @@ The database auto-migrates from old unified `location` table (with `type` column
 
 ## Location Hierarchy System
 
-Uses pipe-delimited strings (`country|city|neighborhood`) stored in a flat table with all possible combinations pre-generated from hierarchical source data.
+Uses pipe-delimited strings (`country|city|neighborhood`) stored in the `location_taxonomy` table. The taxonomy is **dynamically generated** based on actual location usage - no manual seeding required!
 
-**Source data structure:**
-```
-packages/server/src/data/locations/
-├── index.ts                    # Exports all countries
-├── colombia/
-│   ├── index.ts               # Country definition
-│   └── bogota/
-│       └── neighborhoods.ts   # Array of neighborhood objects
-└── peru/
-    └── ...
-```
+**How it works:**
+1. When creating/updating a location with a `locationKey` (e.g., `colombia|bogota|chapinero`)
+2. The system automatically checks if that taxonomy entry exists
+3. If not, creates it with `status='pending'` for admin review
+4. Admin can approve/reject pending entries via `/api/admin/taxonomy/pending`
 
 **Adding new locations:**
-1. Edit TypeScript files in `packages/server/src/data/locations/{country}/{city}/neighborhoods.ts`
-2. Update country index to include new city/neighborhood
-3. Re-run `bun run seed:locations` to regenerate database
+1. Create a location with any `locationKey` (e.g., `brazil|rio-de-janeiro|copacabana`)
+2. System auto-creates pending taxonomy entry
+3. Admin reviews and approves via admin panel
+4. Approved entries appear in frontend dropdowns
+
+**Taxonomy API endpoints:**
+- `GET /api/admin/taxonomy/pending` - View pending taxonomy entries
+- `PATCH /api/admin/taxonomy/:locationKey/approve` - Approve pending entry
+- `DELETE /api/admin/taxonomy/:locationKey/reject` - Reject and delete pending entry
+- `GET /api/location-hierarchy/countries` - Get all approved countries (nested with cities/neighborhoods)
+- `GET /api/countries` - Get country names only
 
 **Key utilities:**
 - `parseLocationValue()` - Parse pipe-delimited string to object
 - `formatLocationForDisplay()` - Format as "Colombia > Bogota > Chapinero"
 - `filterCitiesByCountry()`, `filterNeighborhoodsByCity()` - Cascading filters
 - `isLocationInScope()` - Check if location matches hierarchy scope
+- `ensureTaxonomyEntry()` - Auto-create pending taxonomy (called by MapsService)
 
 ## Code Style
 
@@ -409,10 +410,10 @@ All location endpoints (GET, POST, PATCH) return a consistent nested response st
 
 ## Testing
 
-- Run `bun run test:locations` after changing taxonomy helpers or location data
 - Run `bun run test-routes.ts` when editing controllers or image serving
 - For new logic, add lightweight Bun scripts near the feature with clear pass/fail output
 - Validate API changes manually against `docs/url.md` while server runs
+- Test taxonomy workflow by creating locations with new locationKeys and approving via admin panel
 
 ## Git Conventions
 

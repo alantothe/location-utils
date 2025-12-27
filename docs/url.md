@@ -17,6 +17,7 @@ Base URL: `http://localhost:3000`
 ### Location Hierarchy
 - `GET /api/location-hierarchy` - All hierarchy data
 - `GET /api/location-hierarchy/countries` - List countries
+- `GET /api/countries` - List country names only
 - `GET /api/location-hierarchy/cities/:country` - Cities by country
 - `GET /api/location-hierarchy/neighborhoods/:country/:city` - Neighborhoods
 
@@ -376,6 +377,15 @@ curl -X POST http://localhost:3000/api/add-upload/1 \
     }
   ]
 }
+```
+
+---
+
+## GET /api/countries
+
+**Response:**
+```json
+["colombia", "peru"]
 ```
 
 ---

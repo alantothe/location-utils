@@ -159,3 +159,40 @@ export interface CitiesResponse {
 export interface NeighborhoodsResponse {
   neighborhoods: Neighborhood[];
 }
+
+// ============================================================================
+// ADMIN TAXONOMY TYPES
+// ============================================================================
+
+export interface PendingTaxonomyEntry {
+  id: number;
+  country: string;
+  city: string | null;
+  neighborhood: string | null;
+  locationKey: string;
+  status: 'pending' | 'approved';
+  locationCount: number;
+  created_at: string;
+}
+
+export interface PendingTaxonomyResponse {
+  success: true;
+  data: {
+    entries: PendingTaxonomyEntry[];
+  };
+}
+
+export interface TaxonomyEntryResponse {
+  success: true;
+  data: {
+    entry: {
+      id: number;
+      country: string;
+      city: string | null;
+      neighborhood: string | null;
+      locationKey: string;
+      status: 'pending' | 'approved';
+      created_at: string;
+    };
+  };
+}

@@ -7,6 +7,8 @@ import { removeLocationImagesField } from "./migrations/remove-location-images-f
 import { removeLocationDiningType } from "./migrations/remove-location-dining-type";
 import { addCategoryConstraint } from "./migrations/add-category-constraint";
 import { addLocationSlug } from "./migrations/add-location-slug";
+import { addTaxonomyStatus } from "./migrations/add-taxonomy-status";
+import { addLocationDistrict } from "./migrations/add-location-district";
 
 let db: Database | null = null;
 
@@ -43,9 +45,13 @@ export function initDb() {
         city TEXT,
         neighborhood TEXT,
         locationKey TEXT UNIQUE NOT NULL,
+        status TEXT DEFAULT 'approved' CHECK(status IN ('approved', 'pending')),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    // Ensure status column exists for old-schema databases
+    addTaxonomyStatus(database);
 
     return;
   }
@@ -64,6 +70,7 @@ export function initDb() {
       category TEXT DEFAULT 'attractions'
         CHECK(category IN ('dining', 'accommodations', 'attractions', 'nightlife')),
       locationKey TEXT,
+      district TEXT,
       contactAddress TEXT,
       countryCode TEXT,
       phoneNumber TEXT,
@@ -108,6 +115,7 @@ export function initDb() {
       city TEXT,
       neighborhood TEXT,
       locationKey TEXT UNIQUE NOT NULL,
+      status TEXT DEFAULT 'approved' CHECK(status IN ('approved', 'pending')),
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
@@ -129,6 +137,12 @@ export function initDb() {
 
   // Run migration to add slug column to locations table
   addLocationSlug(database);
+
+  // Run migration to add status column to location_taxonomy table
+  addTaxonomyStatus(database);
+
+  // Run migration to add district column to locations table
+  addLocationDistrict(database);
 }
 
 export function getDb(): Database {

@@ -24,6 +24,8 @@ export interface LocationHierarchy {
   city: string | null;
   neighborhood: string | null;
   locationKey: string; // Pipe-delimited: "colombia|bogota|chapinero"
+  status?: 'approved' | 'pending';
+  created_at?: string;
 }
 
 /**
@@ -40,6 +42,7 @@ export interface Location {
   lng?: number | null;
   category?: LocationCategory;
   locationKey?: string | null;
+  district?: string | null;
   contactAddress?: string | null;
   countryCode?: string | null;
   phoneNumber?: string | null;
@@ -122,6 +125,7 @@ export interface LocationResponse {
   title: string | null;
   category: LocationCategory;
   locationKey: string | null;
+  district: string | null;
   contact: LocationContact;
   coordinates: LocationCoordinates;
   source: LocationSource;

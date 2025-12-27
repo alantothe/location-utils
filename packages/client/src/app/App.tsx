@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Navbar } from "@client/shared/components/layout";
 import { Home, AddLocation, ButtonTest } from "@client/features/locations";
+import { TaxonomyReview } from "@client/features/admin/pages/TaxonomyReview";
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/add" element={<AddLocation />} />
             <Route path="/button-test" element={<ButtonTest />} />
+            <Route path="/admin/taxonomy" element={<TaxonomyReview />} />
           </Routes>
         </main>
       </div>

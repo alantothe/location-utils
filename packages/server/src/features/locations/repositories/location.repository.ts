@@ -18,8 +18,8 @@ export function saveLocation(location: Location): number | boolean {
   try {
     const db = getDb();
     const query = db.query(`
-      INSERT INTO locations (name, title, address, url, lat, lng, category, locationKey, contactAddress, countryCode, phoneNumber, website, slug)
-      VALUES ($name, $title, $address, $url, $lat, $lng, $category, $locationKey, $contactAddress, $countryCode, $phoneNumber, $website, $slug)
+      INSERT INTO locations (name, title, address, url, lat, lng, category, locationKey, district, contactAddress, countryCode, phoneNumber, website, slug)
+      VALUES ($name, $title, $address, $url, $lat, $lng, $category, $locationKey, $district, $contactAddress, $countryCode, $phoneNumber, $website, $slug)
       ON CONFLICT(name, address) DO UPDATE SET
         title = excluded.title,
         url = excluded.url,
@@ -27,6 +27,7 @@ export function saveLocation(location: Location): number | boolean {
         lng = excluded.lng,
         category = excluded.category,
         locationKey = excluded.locationKey,
+        district = excluded.district,
         contactAddress = excluded.contactAddress,
         countryCode = excluded.countryCode,
         phoneNumber = excluded.phoneNumber,
@@ -44,6 +45,7 @@ export function saveLocation(location: Location): number | boolean {
       $lng: location.lng || null,
       $category: location.category || "attractions",
       $locationKey: location.locationKey || null,
+      $district: location.district || null,
       $contactAddress: location.contactAddress || null,
       $countryCode: location.countryCode || null,
       $phoneNumber: location.phoneNumber || null,
@@ -97,6 +99,10 @@ export function updateLocationById(id: number, updates: Partial<Location>): bool
       setClause.push("locationKey = $locationKey");
       params.$locationKey = updates.locationKey;
     }
+    if (updates.district !== undefined) {
+      setClause.push("district = $district");
+      params.$district = updates.district;
+    }
     if (updates.contactAddress !== undefined) {
       setClause.push("contactAddress = $contactAddress");
       params.$contactAddress = updates.contactAddress;
@@ -134,21 +140,21 @@ export function updateLocationById(id: number, updates: Partial<Location>): bool
 
 export function getAllLocations(): Location[] {
   const db = getDb();
-  const query = db.query("SELECT id, name, title, address, url, lat, lng, category, locationKey, contactAddress, countryCode, phoneNumber, website, slug, created_at FROM locations ORDER BY created_at DESC");
+  const query = db.query("SELECT id, name, title, address, url, lat, lng, category, locationKey, district, contactAddress, countryCode, phoneNumber, website, slug, created_at FROM locations ORDER BY created_at DESC");
   const rows = query.all() as any[];
   return rows.map(mapRow);
 }
 
 export function getLocationsByCategory(category: string): Location[] {
   const db = getDb();
-  const query = db.query("SELECT id, name, title, address, url, lat, lng, category, locationKey, contactAddress, countryCode, phoneNumber, website, slug, created_at FROM locations WHERE category = $category ORDER BY created_at DESC");
+  const query = db.query("SELECT id, name, title, address, url, lat, lng, category, locationKey, district, contactAddress, countryCode, phoneNumber, website, slug, created_at FROM locations WHERE category = $category ORDER BY created_at DESC");
   const rows = query.all({ $category: category }) as any[];
   return rows.map(mapRow);
 }
 
 export function getLocationById(id: number): Location | null {
   const db = getDb();
-  const query = db.query("SELECT id, name, title, address, url, lat, lng, category, locationKey, contactAddress, countryCode, phoneNumber, website, slug, created_at FROM locations WHERE id = $id");
+  const query = db.query("SELECT id, name, title, address, url, lat, lng, category, locationKey, district, contactAddress, countryCode, phoneNumber, website, slug, created_at FROM locations WHERE id = $id");
   const row = query.get({ $id: id }) as any;
   if (!row) return null;
   return mapRow(row);
@@ -156,7 +162,7 @@ export function getLocationById(id: number): Location | null {
 
 export function getLocationBySlug(slug: string): Location | null {
   const db = getDb();
-  const query = db.query("SELECT id, name, title, address, url, lat, lng, category, locationKey, contactAddress, countryCode, phoneNumber, website, slug, created_at FROM locations WHERE slug = $slug");
+  const query = db.query("SELECT id, name, title, address, url, lat, lng, category, locationKey, district, contactAddress, countryCode, phoneNumber, website, slug, created_at FROM locations WHERE slug = $slug");
   const row = query.get({ $slug: slug }) as any;
   if (!row) return null;
   return mapRow(row);

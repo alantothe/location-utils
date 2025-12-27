@@ -30,6 +30,11 @@ export const API_ENDPOINTS = {
   NEIGHBORHOODS: (country: string, city: string) =>
     `/api/location-hierarchy/neighborhoods/${country}/${city}`,
 
+  // Admin taxonomy management
+  ADMIN_TAXONOMY_PENDING: "/api/admin/taxonomy/pending",
+  ADMIN_TAXONOMY_APPROVE: (locationKey: string) => `/api/admin/taxonomy/${encodeURIComponent(locationKey)}/approve`,
+  ADMIN_TAXONOMY_REJECT: (locationKey: string) => `/api/admin/taxonomy/${encodeURIComponent(locationKey)}/reject`,
+
   // Files
   OPEN_FOLDER: "/api/open-folder",
 } as const;

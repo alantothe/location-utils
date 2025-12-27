@@ -16,10 +16,12 @@ import { getInstagramEmbedsByLocationId } from "../repositories/instagram-embed.
 import { getUploadsByLocationId } from "../repositories/upload.repository";
 import { transformLocationToResponse } from "../utils/location-utils";
 import { validateCategory, validateCategoryWithDefault } from "../utils/category-utils";
+import { TaxonomyService } from "./taxonomy.service";
 
 export class MapsService {
   constructor(
-    private readonly config: EnvConfig
+    private readonly config: EnvConfig,
+    private readonly taxonomyService: TaxonomyService
   ) {}
 
   async addMapsLocation(payload: CreateMapsRequest): Promise<LocationResponse> {
@@ -32,6 +34,11 @@ export class MapsService {
 
     const apiKey = this.config.hasGoogleMapsKey() ? this.config.GOOGLE_MAPS_API_KEY : undefined;
     const entry = await createFromMaps(payload.name, payload.address, apiKey, category);
+
+    // Ensure taxonomy entry exists (create as pending if new)
+    if (entry.locationKey) {
+      this.taxonomyService.ensureTaxonomyEntry(entry.locationKey);
+    }
 
     saveLocation(entry);
 
@@ -54,6 +61,11 @@ export class MapsService {
 
     // Validate category if provided
     const category = updates.category ? validateCategory(updates.category) : undefined;
+
+    // If updating locationKey, ensure taxonomy entry exists
+    if (updates.locationKey !== undefined && updates.locationKey) {
+      this.taxonomyService.ensureTaxonomyEntry(updates.locationKey);
+    }
 
     // Perform partial update - only update provided fields
     const updateData = {

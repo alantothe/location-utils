@@ -4,6 +4,7 @@ import { createMapsSchema, patchMapsSchema } from "../validation/schemas/maps.sc
 import { addInstagramSchema, addInstagramParamsSchema } from "../validation/schemas/instagram.schemas";
 import { addUploadParamsSchema } from "../validation/schemas/uploads.schemas";
 import { listLocationsQuerySchema, deleteLocationSlugSchema } from "../validation/schemas/locations.schemas";
+import { taxonomyLocationKeyParamsSchema } from "../validation/schemas/taxonomy.schemas";
 
 // Import new controllers
 import { getLocations, getLocationsBasic, deleteLocationBySlug } from "../controllers/locations.controller";
@@ -14,10 +15,16 @@ import { serveImage } from "../controllers/files.controller";
 import {
   getLocationHierarchy,
   getCountries,
+  getCountryNames,
   getCitiesByCountry,
   getNeighborhoodsByCity,
 } from "../controllers/hierarchy.controller";
 import { clearDatabase } from "../controllers/admin.controller";
+import {
+  getPendingTaxonomy,
+  approveTaxonomy,
+  rejectTaxonomy,
+} from "../controllers/taxonomy-admin.controller";
 
 // Location routes
 app.get("/api/locations", validateQuery(listLocationsQuerySchema), getLocations);
@@ -41,8 +48,22 @@ app.get("/api/clear-db", clearDatabase);
 // Location hierarchy API routes
 app.get("/api/location-hierarchy", getLocationHierarchy);
 app.get("/api/location-hierarchy/countries", getCountries);
+app.get("/api/countries", getCountryNames);
 app.get("/api/location-hierarchy/cities/:country", getCitiesByCountry);
 app.get("/api/location-hierarchy/neighborhoods/:country/:city", getNeighborhoodsByCity);
+
+// Admin taxonomy routes
+app.get("/api/admin/taxonomy/pending", getPendingTaxonomy);
+app.patch(
+  "/api/admin/taxonomy/:locationKey/approve",
+  validateParams(taxonomyLocationKeyParamsSchema),
+  approveTaxonomy
+);
+app.delete(
+  "/api/admin/taxonomy/:locationKey/reject",
+  validateParams(taxonomyLocationKeyParamsSchema),
+  rejectTaxonomy
+);
 
 // Serve uploaded images
 app.get("/api/images/*", serveImage);

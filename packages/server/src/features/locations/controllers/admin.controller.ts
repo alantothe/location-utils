@@ -30,11 +30,17 @@ export async function clearDatabase(c: Context) {
     db.run("DELETE FROM sqlite_sequence WHERE name='location'");
   }
 
+  // Clear location hierarchy/taxonomy
+  if (tables.has("location_taxonomy")) {
+    db.run("DELETE FROM location_taxonomy");
+    db.run("DELETE FROM sqlite_sequence WHERE name='location_taxonomy'");
+  }
+
   // Clean up file size after mass deletes
   db.run("VACUUM");
 
   const clearedTables = Array.from(tables).filter((name) =>
-    ["locations", "instagram_embeds", "uploads", "location"].includes(name)
+    ["locations", "instagram_embeds", "uploads", "location", "location_taxonomy"].includes(name)
   );
 
   return c.json({

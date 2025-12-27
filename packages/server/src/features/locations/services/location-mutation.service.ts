@@ -5,3 +5,5 @@ export class LocationMutationService {
     return deleteLocationBySlug(slug);
   }
 }
+
+

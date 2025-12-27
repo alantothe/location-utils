@@ -6,6 +6,7 @@ import { serveImage } from "./packages/server/src/features/locations/controllers
 import {
   getLocationHierarchy,
   getCountries,
+  getCountryNames,
   getCitiesByCountry,
   getNeighborhoodsByCity,
 } from "./packages/server/src/features/locations/controllers/hierarchy.controller";
@@ -78,6 +79,9 @@ await testRoute("GET /api/location-hierarchy", getLocationHierarchy, mockContext
 
 // Test GET /api/location-hierarchy/countries
 await testRoute("GET /api/location-hierarchy/countries", getCountries, mockContext());
+
+// Test GET /api/countries
+await testRoute("GET /api/countries", getCountryNames, mockContext());
 
 // Test GET /api/location-hierarchy/cities/colombia
 await testRoute("GET /api/location-hierarchy/cities/colombia", getCitiesByCountry, mockContext({ country: "colombia" }));

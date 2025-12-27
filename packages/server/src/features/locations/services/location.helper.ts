@@ -1,4 +1,8 @@
 import type { LocationCategory, Location, InstagramEmbed, Upload } from "../models/location";
+import type { BigDataCloudResponse, AdministrativeLevel } from "@server/shared/services/external/bigdatacloud-api.client";
+import { BadRequestError } from "@server/shared/core/errors/http-error";
+
+const APPROVED_COUNTRIES = ['PE', 'CO', 'BR'] as const;
 
 export function generateGoogleMapsUrl(name: string, address: string): string {
   const query = `${name} ${address}`;
@@ -26,26 +30,11 @@ interface GeocodeResponse {
 
 type GeocodeResult = { lat: number; lng: number; countryCode?: string };
 
-interface BigDataCloudResponse {
-  latitude: number;
-  longitude: number;
-  localityLanguage: string;
-  continent?: string;
-  continentCode?: string;
-  countryName?: string;
-  countryCode?: string;
-  principalSubdivision?: string;
-  principalSubdivisionCode?: string;
-  city?: string;
-  locality?: string;
-  postcode?: string;
-  plusCode?: string;
-}
-
 type BigDataCloudLocationData = {
   countryName: string;
   countryCode: string;
   city: string;
+  district: string | null;
   locality: string;
   locationKey: string;
 };
@@ -138,18 +127,29 @@ export async function getPlaceDetails(name: string, address: string, apiKey?: st
 
 export async function reverseGeocodeWithBigDataCloud(
   latitude: number,
-  longitude: number
+  longitude: number,
+  countryCode?: string
 ): Promise<BigDataCloudLocationData | null> {
   try {
-    const url = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`;
-    const response = await fetch(url);
-    const data = await response.json() as BigDataCloudResponse;
+    // Use BigDataCloudClient for API call
+    const { ServiceContainer } = await import('../container/service-container');
+    const container = ServiceContainer.getInstance();
 
-    // Extract and slugify location parts (country, city, locality/neighborhood)
+    const data = await container.bigDataCloudClient.reverseGeocode(latitude, longitude);
+
+    // Extract district using country-specific service
+    const district = container.districtExtractionService.extractDistrict(
+      countryCode || data.countryCode,  // Prefer passed countryCode, fallback to API
+      data.localityInfo?.administrative || [],
+      data.localityInfo?.informative  // Pass informative array for Brazil tourism zones
+    );
+
+    // Extract and slugify location parts (country, city, district)
+    // Use district from extraction service for precise, stable location keys
     const locationParts = [
       slugifyLocationPart(data.countryName),
       slugifyLocationPart(data.city),
-      slugifyLocationPart(data.locality),
+      slugifyLocationPart(district),
     ].filter(Boolean) as string[];
 
     const locationKey = locationParts.length ? locationParts.join("|") : "";
@@ -159,6 +159,7 @@ export async function reverseGeocodeWithBigDataCloud(
       countryName: data.countryName || "",
       countryCode: data.countryCode || "",
       city: data.city || "",
+      district: district,
       locality: data.locality || "",
       locationKey
     };
@@ -167,6 +168,66 @@ export async function reverseGeocodeWithBigDataCloud(
   } catch (error) {
     console.error("Error fetching BigDataCloud reverse geocoding:", error);
     return null;
+  }
+}
+
+async function reverseGeocodeWithGeoapify(
+  latitude: number,
+  longitude: number,
+  countryCode?: string
+): Promise<BigDataCloudLocationData | null> {
+  try {
+    const { ServiceContainer } = await import('../container/service-container');
+    const container = ServiceContainer.getInstance();
+
+    if (!container.geoapifyClient.isConfigured()) {
+      console.warn("Geoapify not configured, skipping reverse geocoding");
+      return null;
+    }
+
+    const data = await container.geoapifyClient.reverseGeocode(latitude, longitude);
+
+    // For Brazil: suburb is the bairro (e.g., "Copacabana")
+    // We prefer suburb over district for Brazilian neighborhoods
+    const city = data.city || data.state || "";
+    const district = data.suburb || null;
+
+    // Slugify and create locationKey (country|city|district)
+    // Note: We use Google's country code if available (more reliable)
+    const locationParts = [
+      slugifyLocationPart(data.country),
+      slugifyLocationPart(city),
+      slugifyLocationPart(district),
+    ].filter(Boolean) as string[];
+
+    const locationKey = locationParts.length ? locationParts.join("|") : "";
+
+    return {
+      countryName: data.country || "",
+      countryCode: data.country_code?.toUpperCase() || countryCode?.toUpperCase() || "",
+      city: city,
+      district: district,
+      locality: data.suburb || "",  // locality = suburb for Brazil
+      locationKey
+    };
+  } catch (error) {
+    console.error("Error fetching Geoapify reverse geocoding:", error);
+    return null;
+  }
+}
+
+async function reverseGeocodeWithRouting(
+  latitude: number,
+  longitude: number,
+  countryCode?: string
+): Promise<BigDataCloudLocationData | null> {
+  const routedCountryCode = countryCode?.toUpperCase();
+
+  if (routedCountryCode === 'BR') {
+    return reverseGeocodeWithGeoapify(latitude, longitude, countryCode);
+  } else {
+    // Default: Peru, Colombia, and any others
+    return reverseGeocodeWithBigDataCloud(latitude, longitude, countryCode);
   }
 }
 
@@ -228,20 +289,35 @@ export async function createFromMaps(
       entry.lat = coords.lat;
       entry.lng = coords.lng;
 
-      // Use Google countryCode
+      // COUNTRY VALIDATION - Check if country is approved
       if (coords.countryCode) {
+        const normalizedCode = coords.countryCode.toUpperCase();
+        if (!APPROVED_COUNTRIES.includes(normalizedCode as any)) {
+          throw new BadRequestError(
+            "Location not allowed. Only Peru, Colombia, and Brazil are supported."
+          );
+        }
         entry.countryCode = coords.countryCode;
       }
 
-      // Use BigDataCloud ONLY for locationKey (no fallback)
+      // Use routing function to select appropriate reverse geocoding API
       try {
-        const bigDataCloudData = await reverseGeocodeWithBigDataCloud(coords.lat, coords.lng);
-        if (bigDataCloudData && bigDataCloudData.locationKey) {
-          entry.locationKey = bigDataCloudData.locationKey;
+        const reverseGeoData = await reverseGeocodeWithRouting(
+          coords.lat,
+          coords.lng,
+          coords.countryCode  // Pass Google's countryCode for better accuracy
+        );
+        if (reverseGeoData) {
+          if (reverseGeoData.locationKey) {
+            entry.locationKey = reverseGeoData.locationKey;
+          }
+          if (reverseGeoData.district) {
+            entry.district = reverseGeoData.district;
+          }
         }
-      } catch (bigDataCloudError) {
-        console.warn("Failed to fetch BigDataCloud reverse geocoding:", bigDataCloudError);
-        // locationKey stays null if BigDataCloud fails
+      } catch (reverseGeoError) {
+        console.warn("Failed to fetch reverse geocoding:", reverseGeoError);
+        // locationKey and district stay null if reverse geocoding fails
       }
     }
 
@@ -273,6 +349,10 @@ export async function createFromMaps(
       // Continue without place details - geocoding still worked
     }
   } catch (e) {
+    // Re-throw BadRequestError for country validation
+    if (e instanceof BadRequestError) {
+      throw e;
+    }
     console.warn("Failed to fetch coordinates in createFromMaps:", e);
   }
 

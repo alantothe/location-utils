@@ -2,9 +2,10 @@ import type { Context } from "hono";
 import { BadRequestError } from "@shared/errors/http-error";
 import {
   getAllLocationHierarchy,
-  getCitiesByCountry as getCitiesByCountryRepo,
-  getCountries as getCountriesRepo,
-  getNeighborhoodsByCity as getNeighborhoodsByCityRepo,
+  getCountries,
+  getCountriesNested,
+  getCitiesNestedByCountry,
+  getNeighborhoodsNested,
 } from "../repositories/location-hierarchy.repository";
 
 export function getLocationHierarchy(c: Context) {
@@ -13,8 +14,14 @@ export function getLocationHierarchy(c: Context) {
 }
 
 export function getCountries(c: Context) {
-  const countries = getCountriesRepo();
+  const countries = getCountriesNested();
   return c.json({ countries });
+}
+
+export function getCountryNames(c: Context) {
+  const countries = getCountries();
+  const countryNames = countries.map(country => country.country);
+  return c.json(countryNames);
 }
 
 export function getCitiesByCountry(c: Context) {
@@ -23,7 +30,7 @@ export function getCitiesByCountry(c: Context) {
     throw new BadRequestError("Country parameter required");
   }
 
-  const cities = getCitiesByCountryRepo(country);
+  const cities = getCitiesNestedByCountry(country);
   return c.json({ cities });
 }
 
@@ -35,6 +42,6 @@ export function getNeighborhoodsByCity(c: Context) {
     throw new BadRequestError("Country and city parameters required");
   }
 
-  const neighborhoods = getNeighborhoodsByCityRepo(country, city);
+  const neighborhoods = getNeighborhoodsNested(country, city);
   return c.json({ neighborhoods });
 }

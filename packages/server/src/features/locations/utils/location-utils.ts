@@ -134,47 +134,6 @@ export function isLocationInScope(locationKey: string, parentLocationKey: string
 }
 
 /**
- * Generate all possible location combinations from hierarchical data
- * @param countries - Array of country data with cities and neighborhoods
- * @returns Array of all possible location hierarchy entries
- */
-export function generateLocationCombinations(countries: CountryData[]): LocationHierarchy[] {
-  const locations: LocationHierarchy[] = [];
-
-  countries.forEach(country => {
-    // Add country-only entry
-    locations.push({
-      country: country.code,
-      city: null,
-      neighborhood: null,
-      locationKey: country.code,
-    });
-
-    country.cities.forEach(city => {
-      // Add country|city entry
-      locations.push({
-        country: country.code,
-        city: city.value,
-        neighborhood: null,
-        locationKey: `${country.code}|${city.value}`,
-      });
-
-      // Add country|city|neighborhood entries
-      city.neighborhoods.forEach(neighborhood => {
-        locations.push({
-          country: country.code,
-          city: city.value,
-          neighborhood: neighborhood.value,
-          locationKey: `${country.code}|${city.value}|${neighborhood.value}`,
-        });
-      });
-    });
-  });
-
-  return locations;
-}
-
-/**
  * Transform a flat location with nested arrays to the API response format
  * with contact, coordinates, and source objects
  * @param location - Location with nested instagram_embeds and uploads
@@ -186,6 +145,7 @@ export function transformLocationToResponse(location: LocationWithNested): Locat
     title: location.title || null,
     category: location.category || 'attractions',
     locationKey: location.locationKey || null,
+    district: location.district || null,
     contact: {
       countryCode: location.countryCode || null,
       phoneNumber: location.phoneNumber || null,
@@ -220,4 +180,65 @@ export function transformLocationToBasicResponse(location: Location): LocationBa
     location: location.locationKey || null,
     category: location.category || 'attractions',
   };
+}
+
+/**
+ * Transform flat location hierarchy rows into nested country data structure
+ * @param locations - Flat array of location hierarchy entries
+ * @returns Array of countries with nested cities and neighborhoods
+ */
+export function buildNestedHierarchy(locations: LocationHierarchy[]): CountryData[] {
+  const countryMap = new Map<string, CountryData>();
+
+  locations.forEach(loc => {
+    // Get or create country
+    if (!countryMap.has(loc.country)) {
+      countryMap.set(loc.country, {
+        code: loc.country.toUpperCase().slice(0, 2), // CO, PE, etc.
+        label: formatLocationName(loc.country), // Colombia, Peru
+        cities: []
+      });
+    }
+
+    const country = countryMap.get(loc.country)!;
+
+    // If this is a city entry (has city but no neighborhood)
+    if (loc.city && !loc.neighborhood) {
+      // Check if city already exists
+      let city = country.cities.find(c => c.value === loc.city);
+      if (!city) {
+        city = {
+          label: formatLocationName(loc.city),
+          value: loc.city,
+          neighborhoods: []
+        };
+        country.cities.push(city);
+      }
+    }
+
+    // If this is a neighborhood entry (has both city and neighborhood)
+    if (loc.city && loc.neighborhood) {
+      // Get or create city
+      let city = country.cities.find(c => c.value === loc.city);
+      if (!city) {
+        city = {
+          label: formatLocationName(loc.city),
+          value: loc.city,
+          neighborhoods: []
+        };
+        country.cities.push(city);
+      }
+
+      // Add neighborhood if not already present
+      const neighborhoodExists = city.neighborhoods.some(n => n.value === loc.neighborhood);
+      if (!neighborhoodExists) {
+        city.neighborhoods.push({
+          label: formatLocationName(loc.neighborhood),
+          value: loc.neighborhood
+        });
+      }
+    }
+  });
+
+  return Array.from(countryMap.values());
 }
