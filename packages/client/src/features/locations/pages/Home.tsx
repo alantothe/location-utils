@@ -36,7 +36,7 @@ export function Home() {
   }
 
   return (
-    <div>
+    <div style={{ padding: "1.5rem" }}>
 
       <LocationFilters
         selectedCountry={filters.selectedCountry}
@@ -48,8 +48,8 @@ export function Home() {
         isLoadingCountries={isLoadingCountries}
       />
 
-      <div style={{ marginTop: "2rem" }}>
-        <h2>
+      <div style={{ marginTop: "2.5rem" }}>
+        <h2 style={{ marginBottom: "1rem", fontSize: "1.25rem", fontWeight: "600" }}>
           {filters.isFilterActive ? "Filtered Locations" : "All Locations"} ({locations.length})
         </h2>
 
