@@ -21,3 +21,4 @@ export function formatLocationHierarchy(locationKey: string): string {
     .map(segment => formatLocationName(segment))
     .join(" > ");
 }
+
