@@ -1,4 +1,4 @@
-import { LocationResponse } from "@client/shared/services/api/types";
+import type { LocationResponse } from "@client/shared/services/api/types";
 import { truncateUrl } from "../../utils";
 import { DetailField } from "./DetailField";
 
