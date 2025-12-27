@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import { Settings } from "lucide-react";
 import { formatLocationHierarchy } from "@client/shared/lib/utils";
 import { useLocationDetail } from "../../hooks";
 import { useToast } from "@client/shared/hooks/useToast";
@@ -33,8 +34,22 @@ interface LocationListItemProps {
 
 export function LocationListItem({ location, onClick }: LocationListItemProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const { data: locationDetail, isLoading, error } = useLocationDetail(isExpanded ? location.id : null);
   const { showToast } = useToast();
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleClick = () => {
     if (onClick) {
@@ -76,9 +91,41 @@ export function LocationListItem({ location, onClick }: LocationListItemProps) {
             </p>
           )}
         </div>
-        <span className={`text-xs font-medium uppercase tracking-wider px-2 py-1 rounded-md flex-shrink-0 ${getCategoryBadgeStyles(location.category)}`}>
-          {location.category}
-        </span>
+        <div className="flex items-center gap-3 flex-shrink-0 relative" ref={menuRef}>
+          <Settings
+            size={16}
+            className="text-black cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsMenuOpen(!isMenuOpen);
+            }}
+          />
+          {isMenuOpen && (
+            <div className="absolute right-full mr-2 top-0 z-10 bg-white border border-gray-200 rounded py-0.5 min-w-[80px] max-h-[77px]">
+              <button
+                className="w-full text-left px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Handle edit action here
+                }}
+              >
+                Edit
+              </button>
+              <button
+                className="w-full text-left px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Handle delete action here
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          )}
+          <span className={`text-xs font-medium uppercase tracking-wider px-2 py-1 rounded-md ${getCategoryBadgeStyles(location.category)}`}>
+            {location.category}
+          </span>
+        </div>
       </div>
 
       {/* Expanded Details */}
