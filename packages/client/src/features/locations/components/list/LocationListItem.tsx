@@ -3,6 +3,23 @@ import { formatLocationHierarchy } from "@client/shared/lib/utils";
 import { useLocationDetail } from "../../hooks";
 import { useToast } from "@client/shared/hooks/useToast";
 
+function getCategoryBadgeStyles(category: string) {
+  const categoryLower = category.toLowerCase();
+
+  switch (categoryLower) {
+    case 'accommodations':
+      return 'bg-blue-50 text-slate-600';
+    case 'nightlife':
+      return 'bg-purple-50 text-slate-600';
+    case 'dining':
+      return 'bg-orange-50 text-slate-600';
+    case 'attractions':
+      return 'bg-green-50 text-slate-600';
+    default:
+      return 'bg-gray-50 text-slate-600';
+  }
+}
+
 interface LocationListItemProps {
   location: {
     id: number;
@@ -58,7 +75,7 @@ export function LocationListItem({ location, onClick }: LocationListItemProps) {
             </p>
           )}
         </div>
-        <span className="text-xs font-medium text-gray-500 uppercase tracking-wider px-2 py-1 bg-gray-50 rounded-md flex-shrink-0">
+        <span className={`text-xs font-medium uppercase tracking-wider px-2 py-1 rounded-md flex-shrink-0 ${getCategoryBadgeStyles(location.category)}`}>
           {location.category}
         </span>
       </div>
