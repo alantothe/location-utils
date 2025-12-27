@@ -28,3 +28,4 @@ export {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "./alert-dialog";
+export { Toast, ToastContainer } from "./toast";
