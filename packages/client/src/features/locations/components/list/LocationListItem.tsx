@@ -26,93 +26,111 @@ export function LocationListItem({ location, onClick }: LocationListItemProps) {
 
   return (
     <div
-      style={{
-        border: "1px solid #ddd",
-        borderRadius: "6px",
-        padding: "0.75rem",
-        backgroundColor: "#ffffff",
-        cursor: "pointer",
-      }}
+      className="border border-gray-300 rounded-lg p-4 bg-white cursor-pointer transition-all duration-200 hover:shadow-sm hover:border-gray-400"
       onClick={handleClick}
     >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontWeight: "500", color: "#1a1a1a" }}>
-          {location.name}
-        </span>
-        <span style={{ fontSize: "0.875rem", color: "#666", textTransform: "capitalize" }}>
+      {/* Header Section */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <h3 className="font-medium text-gray-900 text-base leading-tight truncate">
+            {location.name}
+          </h3>
+          {location.location && (
+            <p className="text-sm text-gray-600 mt-1 leading-relaxed">
+              {formatLocationHierarchy(location.location)}
+            </p>
+          )}
+        </div>
+        <span className="text-xs font-medium text-gray-500 uppercase tracking-wider px-2 py-1 bg-gray-50 rounded-md flex-shrink-0">
           {location.category}
         </span>
       </div>
-      {location.location && (
-        <p style={{ margin: "0.25rem 0 0 0", fontSize: "0.875rem", color: "#666" }}>
-          {formatLocationHierarchy(location.location)}
-        </p>
-      )}
 
+      {/* Expanded Details */}
       {isExpanded && (
-        <div style={{ marginTop: "1rem", paddingTop: "1rem", borderTop: "1px solid #eee" }}>
+        <div className="mt-4 pt-4 border-t border-gray-200">
           {isLoading && (
-            <p style={{ fontSize: "0.875rem", color: "#666" }}>Loading details...</p>
+            <p className="text-sm text-gray-600">Loading details...</p>
           )}
 
           {error && (
-            <p style={{ fontSize: "0.875rem", color: "#d32f2f" }}>
+            <p className="text-sm text-red-600">
               Error loading details: {error.message}
             </p>
           )}
 
           {locationDetail && (
-            <div style={{ fontSize: "0.875rem", color: "#333" }}>
+            <div className="space-y-3">
               {locationDetail.title && locationDetail.title !== locationDetail.source?.name && (
-                <p style={{ margin: "0.25rem 0" }}>
-                  <strong>Title:</strong> {locationDetail.title}
-                </p>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-fit">
+                    Title:
+                  </span>
+                  <span className="text-sm text-gray-900">{locationDetail.title}</span>
+                </div>
               )}
 
               {locationDetail.source?.address && (
-                <p style={{ margin: "0.25rem 0" }}>
-                  <strong>Address:</strong> {locationDetail.source.address}
-                </p>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-fit">
+                    Address:
+                  </span>
+                  <span className="text-sm text-gray-900 leading-relaxed">
+                    {locationDetail.source.address}
+                  </span>
+                </div>
               )}
 
               {locationDetail.contact?.phoneNumber && (
-                <p style={{ margin: "0.25rem 0" }}>
-                  <strong>Phone:</strong> {locationDetail.contact.phoneNumber}
-                </p>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-fit">
+                    Phone:
+                  </span>
+                  <span className="text-sm text-gray-900">{locationDetail.contact.phoneNumber}</span>
+                </div>
               )}
 
               {locationDetail.contact?.website && (
-                <p style={{ margin: "0.25rem 0" }}>
-                  <strong>Website:</strong>{" "}
+                <div className="flex items-baseline gap-2">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-fit">
+                    Website:
+                  </span>
                   <a
                     href={locationDetail.contact.website}
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={{ color: "#1976d2", textDecoration: "none" }}
+                    className="text-sm text-blue-600 hover:text-blue-700 hover:underline transition-colors"
                     onClick={(e) => e.stopPropagation()}
                   >
                     {locationDetail.contact.website}
                   </a>
-                </p>
+                </div>
               )}
 
               {locationDetail.coordinates?.lat && locationDetail.coordinates?.lng && (
-                <p style={{ margin: "0.25rem 0" }}>
-                  <strong>Coordinates:</strong> {locationDetail.coordinates.lat}, {locationDetail.coordinates.lng}
-                </p>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-fit">
+                    Coordinates:
+                  </span>
+                  <span className="text-sm text-gray-900 font-mono">
+                    {locationDetail.coordinates.lat}, {locationDetail.coordinates.lng}
+                  </span>
+                </div>
               )}
 
               {locationDetail.instagram_embeds?.length > 0 && (
-                <div style={{ margin: "0.5rem 0" }}>
-                  <strong>Instagram Posts:</strong>
-                  <ul style={{ margin: "0.25rem 0", paddingLeft: "1rem" }}>
+                <div className="space-y-2">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Instagram Posts:
+                  </span>
+                  <ul className="space-y-1 ml-4">
                     {locationDetail.instagram_embeds.map((embed) => (
-                      <li key={embed.id} style={{ margin: "0.25rem 0" }}>
+                      <li key={embed.id}>
                         <a
                           href={embed.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          style={{ color: "#1976d2", textDecoration: "none" }}
+                          className="text-sm text-blue-600 hover:text-blue-700 hover:underline transition-colors"
                           onClick={(e) => e.stopPropagation()}
                         >
                           @{embed.username}
@@ -124,11 +142,13 @@ export function LocationListItem({ location, onClick }: LocationListItemProps) {
               )}
 
               {locationDetail.uploads?.length > 0 && (
-                <div style={{ margin: "0.5rem 0" }}>
-                  <strong>Uploaded Images:</strong>
-                  <p style={{ margin: "0.25rem 0", fontSize: "0.75rem", color: "#666" }}>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-fit">
+                    Images:
+                  </span>
+                  <span className="text-sm text-gray-600">
                     {locationDetail.uploads.length} image{locationDetail.uploads.length !== 1 ? 's' : ''} uploaded
-                  </p>
+                  </span>
                 </div>
               )}
             </div>
