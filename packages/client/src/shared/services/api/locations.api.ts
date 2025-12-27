@@ -44,21 +44,21 @@ export const locationsApi = {
   },
 
   /**
-   * Create a new maps location
+   * Create a new location
    */
-  async createMapsLocation(data: CreateMapsRequest): Promise<Location> {
-    const response = await apiPost<LocationEntryResponse>(API_ENDPOINTS.ADD_MAPS, data);
+  async createLocation(data: CreateMapsRequest): Promise<Location> {
+    const response = await apiPost<LocationEntryResponse>(API_ENDPOINTS.CREATE_LOCATION, data);
     return unwrapEntry(response);
   },
 
   /**
-   * Update an existing maps location
+   * Update an existing location
    */
-  async updateMapsLocation(
+  async updateLocation(
     id: number,
     data: UpdateMapsRequest
   ): Promise<Location> {
-    return apiPatch<Location>(API_ENDPOINTS.UPDATE_MAPS(id), data);
+    return apiPatch<Location>(API_ENDPOINTS.UPDATE_LOCATION(id), data);
   },
 
   /**
@@ -108,9 +108,9 @@ export const locationsApi = {
   },
 
   /**
-   * Delete a location by slug
+   * Delete a location by ID
    */
-  async deleteLocation(slug: string): Promise<SuccessResponse> {
-    return apiDelete<SuccessResponse>(API_ENDPOINTS.DELETE_LOCATION(slug));
+  async deleteLocation(id: number): Promise<SuccessResponse> {
+    return apiDelete<SuccessResponse>(API_ENDPOINTS.DELETE_LOCATION(id));
   },
 };

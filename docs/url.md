@@ -7,8 +7,9 @@ Base URL: `http://localhost:3000`
 ### Location Management
 - `GET /api/locations` - List all locations
 - `GET /api/locations-basic` - List locations with basic info only
-- `POST /api/add-maps` - Create maps location
-- `PATCH /api/maps/:id` - Update maps location
+- `POST /api/locations` - Create new location
+- `PATCH /api/locations/:id` - Update location by ID
+- `DELETE /api/locations/:id` - Delete location by ID
 - `POST /api/add-instagram/:id` - Add Instagram embed
 - `POST /api/add-upload/:id` - Upload files
 - `POST /api/open-folder` - Open system folder
@@ -21,8 +22,13 @@ Base URL: `http://localhost:3000`
 - `GET /api/location-hierarchy/cities/:country` - Cities by country
 - `GET /api/location-hierarchy/neighborhoods/:country/:city` - Neighborhoods
 
+### Admin Taxonomy Management
+- `GET /api/admin/taxonomy/pending` - Get pending taxonomy entries
+- `PATCH /api/admin/taxonomy/:locationKey/approve` - Approve pending taxonomy entry
+- `DELETE /api/admin/taxonomy/:locationKey/reject` - Reject pending taxonomy entry
+
 ### Static Files
-- `GET /src/data/images/*` - Serve images
+- `GET /api/images/*` - Serve uploaded images
 
 ---
 
@@ -107,16 +113,16 @@ GET /api/locations-basic?category=dining&locationKey=colombia|bogota
 
 ---
 
-## DELETE /api/locations/:slug
+## DELETE /api/locations/:id
 
-Delete a location by its URL slug.
+Delete a location by its ID.
 
 **Path Parameters:**
-- `slug` (string, required): URL-friendly identifier (kebab-case, e.g., "panchita-miraflores")
+- `id` (number, required): Location ID returned from POST /api/locations
 
 **Example:**
 ```bash
-DELETE /api/locations/panchita-miraflores
+DELETE /api/locations/123
 ```
 
 **Response (Success - 200):**
@@ -139,11 +145,11 @@ DELETE /api/locations/panchita-miraflores
 
 **Notes:**
 - This operation cascades: all associated Instagram embeds and uploads are also deleted
-- The slug is derived from the location name (lowercase, kebab-case format)
+- The ID is the primary key returned when creating locations via POST /api/locations
 
 ---
 
-## POST /api/add-maps
+## POST /api/locations
 
 **Request:**
 ```json
@@ -189,7 +195,7 @@ DELETE /api/locations/panchita-miraflores
 
 ---
 
-## PATCH /api/maps/:id
+## PATCH /api/locations/:id
 
 **Updatable Fields:**
 - `title`, `category`, `locationKey`, `contactAddress`, `countryCode`, `phoneNumber`, `website`
@@ -425,3 +431,164 @@ curl -X POST http://localhost:3000/api/add-upload/1 \
   ]
 }
 ```
+
+---
+
+## GET /api/images/*
+
+Serve uploaded images from the filesystem.
+
+**Path Parameters:**
+- `*` (string, required): Relative path to the image file within the images directory
+
+**Examples:**
+```bash
+GET /api/images/location_name/uploads/1234567890/image_0.jpg
+GET /api/images/location_name/instagram/1234567890/image_0.jpg
+```
+
+**Response:**
+- Success (200): Returns the image file as binary data
+- Not Found (404): Plain text "Image Not Found"
+
+**Notes:**
+- Images are stored in subdirectories by location name and type (uploads/instagram)
+- The base images directory is configurable via `IMAGES_PATH` environment variable
+- Falls back to `data/images` relative to the working directory if not set
+
+---
+
+## GET /api/admin/taxonomy/pending
+
+Get all pending taxonomy entries that require approval before they can be used.
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "entries": [
+      {
+        "id": 1,
+        "country": "brazil",
+        "city": "rio-de-janeiro",
+        "neighborhood": "copacabana",
+        "locationKey": "brazil|rio-de-janeiro|copacabana",
+        "status": "pending",
+        "created_at": "2024-01-15T10:30:00.000Z",
+        "locationCount": 3
+      }
+    ]
+  }
+}
+```
+
+**Notes:**
+- `locationCount` indicates how many locations are currently using this taxonomy entry
+- Pending entries are created automatically when new locations reference unknown taxonomy combinations
+
+---
+
+## PATCH /api/admin/taxonomy/:locationKey/approve
+
+Approve a pending taxonomy entry, making it available for use by locations.
+
+**Path Parameters:**
+- `locationKey` (string, required): Taxonomy key in format `country|city|neighborhood`
+
+**Example:**
+```bash
+PATCH /api/admin/taxonomy/brazil|rio-de-janeiro|copacabana
+```
+
+**Response (Success - 200):**
+```json
+{
+  "success": true,
+  "data": {
+    "entry": {
+      "id": 1,
+      "country": "brazil",
+      "city": "rio-de-janeiro",
+      "neighborhood": "copacabana",
+      "locationKey": "brazil|rio-de-janeiro|copacabana",
+      "status": "approved",
+      "created_at": "2024-01-15T10:30:00.000Z"
+    }
+  }
+}
+```
+
+**Response (Not Found - 404):**
+```json
+{
+  "success": false,
+  "error": "Taxonomy entry not found"
+}
+```
+
+**Response (Bad Request - 400):**
+```json
+{
+  "success": false,
+  "error": "Taxonomy entry is already approved"
+}
+```
+
+---
+
+## DELETE /api/admin/taxonomy/:locationKey/reject
+
+Reject and permanently delete a pending taxonomy entry.
+
+**Path Parameters:**
+- `locationKey` (string, required): Taxonomy key in format `country|city|neighborhood`
+
+**Example:**
+```bash
+DELETE /api/admin/taxonomy/brazil|rio-de-janeiro|copacabana
+```
+
+**Response (Success - 200):**
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Taxonomy entry rejected"
+  }
+}
+```
+
+**Response (Not Found - 404):**
+```json
+{
+  "success": false,
+  "error": "Taxonomy entry not found"
+}
+```
+
+**Response (Bad Request - 400):**
+```json
+{
+  "success": false,
+  "error": "Cannot reject an approved taxonomy entry"
+}
+```
+
+---
+
+## Taxonomy Approval Workflow
+
+The system implements a two-phase taxonomy management workflow to ensure data quality:
+
+1. **Automatic Creation**: When a new location is created with a taxonomy combination (country|city|neighborhood) that doesn't exist in the approved taxonomy, a pending entry is automatically created.
+
+2. **Admin Review**: Pending entries must be explicitly approved by an administrator before they can be used. This prevents typos and ensures consistent naming conventions.
+
+3. **Admin Actions**:
+   - **Approve**: Moves the entry from `pending` to `approved` status, making it available for use
+   - **Reject**: Permanently deletes the pending entry
+
+4. **Usage**: Only approved taxonomy entries appear in the location hierarchy endpoints and can be used when filtering locations.
+
+This workflow ensures that the taxonomy remains clean and consistent while allowing for the discovery of new geographic areas.

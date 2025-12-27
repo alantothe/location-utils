@@ -21,13 +21,14 @@ export const filesApi = {
 
   /**
    * Get the full URL for an image path
-   * @param imagePath - Relative path from server (e.g., "src/data/images/location/file.jpg")
-   * @returns Full URL to access the image
+   * @param imagePath - Server path (e.g., "src/data/images/location/file.jpg")
+   * @returns Full URL to access the image via /api/images/* endpoint
    */
   getImageUrl(imagePath: string): string {
-    // Remove leading slash if present
-    const cleanPath = imagePath.startsWith("/") ? imagePath.slice(1) : imagePath;
-    return API_BASE_URL ? `${API_BASE_URL}/${cleanPath}` : `/${cleanPath}`;
+    // Convert server path to API endpoint path
+    // e.g., "src/data/images/location/file.jpg" -> "/api/images/location/file.jpg"
+    const apiPath = imagePath.replace(/^src\/data\//, '/api/');
+    return API_BASE_URL ? `${API_BASE_URL}${apiPath}` : apiPath;
   },
 
   /**

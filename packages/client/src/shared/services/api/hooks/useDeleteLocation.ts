@@ -6,7 +6,7 @@ export function useDeleteLocation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (slug: string) => locationsApi.deleteLocation(slug),
+    mutationFn: (id: number) => locationsApi.deleteLocation(id),
     onSuccess: () => {
       // Invalidate and refetch locations after successful deletion
       queryClient.invalidateQueries({ queryKey: LOCATIONS_QUERY_KEY });

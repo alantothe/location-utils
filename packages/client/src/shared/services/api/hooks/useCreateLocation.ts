@@ -7,7 +7,7 @@ export function useCreateLocation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: CreateMapsRequest) => locationsApi.createMapsLocation(data),
+    mutationFn: (data: CreateMapsRequest) => locationsApi.createLocation(data),
     onSuccess: () => {
       // Invalidate and refetch locations after successful creation
       queryClient.invalidateQueries({ queryKey: LOCATIONS_QUERY_KEY });

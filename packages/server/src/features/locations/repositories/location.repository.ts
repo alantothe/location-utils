@@ -182,6 +182,33 @@ export function clearDatabase() {
   }
 }
 
+export function deleteLocationById(id: number): boolean {
+  try {
+    const db = getDb();
+
+    // First get the location to check if it exists
+    const location = getLocationById(id);
+    if (!location) {
+      return false;
+    }
+
+    // Delete related instagram_embeds
+    db.run("DELETE FROM instagram_embeds WHERE location_id = ?", id);
+
+    // Delete related uploads
+    db.run("DELETE FROM uploads WHERE location_id = ?", id);
+
+    // Delete the location itself
+    const deleteStmt = db.query("DELETE FROM locations WHERE id = $id");
+    const result = deleteStmt.run({ $id: id });
+
+    return result.changes > 0;
+  } catch (error) {
+    console.error("Error deleting location by id:", error);
+    return false;
+  }
+}
+
 export function deleteLocationBySlug(slug: string): boolean {
   try {
     const db = getDb();

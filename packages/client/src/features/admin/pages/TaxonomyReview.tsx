@@ -5,6 +5,7 @@ import {
   useRejectTaxonomy,
 } from "@client/shared/services/api/hooks";
 import { Button } from "@client/components/ui/button";
+import { formatLocationHierarchy } from "@client/shared/lib/utils";
 
 export function TaxonomyReview() {
   const { data: pendingEntries, isLoading, error } = usePendingTaxonomy();
@@ -30,13 +31,6 @@ export function TaxonomyReview() {
     }
   };
 
-  const formatLocationName = (entry: typeof pendingEntries[0]) => {
-    const parts = [];
-    if (entry.neighborhood) parts.push(entry.neighborhood);
-    if (entry.city) parts.push(entry.city);
-    if (entry.country) parts.push(entry.country);
-    return parts.join(", ");
-  };
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -73,9 +67,6 @@ export function TaxonomyReview() {
               <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Location
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                     LocationKey
                   </th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
@@ -93,13 +84,8 @@ export function TaxonomyReview() {
                 {pendingEntries?.map((entry) => (
                   <tr key={entry.locationKey} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="font-medium text-gray-900 dark:text-gray-100">
-                        {formatLocationName(entry)}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
                       <code className="text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
-                        {entry.locationKey}
+                        {formatLocationHierarchy(entry.locationKey)}
                       </code>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">

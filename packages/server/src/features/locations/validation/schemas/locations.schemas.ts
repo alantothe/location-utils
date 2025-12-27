@@ -18,5 +18,12 @@ export const deleteLocationSlugSchema = z.object({
     .max(100, "Slug is too long")
 }).strict();
 
+export const deleteLocationIdSchema = z.object({
+  id: z.number()
+    .int("ID must be an integer")
+    .positive("ID must be positive")
+}).strict();
+
 export type ListLocationsQueryDto = z.infer<typeof listLocationsQuerySchema>;
 export type DeleteLocationSlugDto = z.infer<typeof deleteLocationSlugSchema>;
+export type DeleteLocationIdDto = z.infer<typeof deleteLocationIdSchema>;

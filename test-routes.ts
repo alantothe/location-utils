@@ -66,10 +66,10 @@ const locationsBasicContext = mockContext();
 locationsBasicContext.set("validatedQuery", {});
 await testRoute("GET /api/locations-basic", getLocationsBasic, locationsBasicContext);
 
-// Test PATCH /api/maps/:id (non-existent ID to test error handling)
+// Test PATCH /api/locations/:id (non-existent ID to test error handling)
 const patchContext = mockContext({ id: "99999" }, { title: "Updated Title" });
 patchContext.set("validatedBody", { title: "Updated Title" });
-await testRoute("PATCH /api/maps/99999 (non-existent)", patchMapsById, patchContext, 404);
+await testRoute("PATCH /api/locations/99999 (non-existent)", patchMapsById, patchContext, 404);
 
 // Test Location Hierarchy Routes
 console.log("🏛️  Testing Location Hierarchy Routes:");

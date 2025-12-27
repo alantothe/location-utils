@@ -1,7 +1,7 @@
 import type { Context } from "hono";
 import { ServiceContainer } from "../container/service-container";
 import { successResponse, errorResponse } from "@shared/types/api-response";
-import type { ListLocationsQueryDto, DeleteLocationSlugDto } from "../validation/schemas/locations.schemas";
+import type { ListLocationsQueryDto, DeleteLocationSlugDto, DeleteLocationIdDto } from "../validation/schemas/locations.schemas";
 
 const container = ServiceContainer.getInstance();
 
@@ -30,7 +30,19 @@ export function deleteLocationBySlug(c: Context) {
   const deleted = container.locationMutationService.deleteLocationBySlug(dto.slug);
 
   if (!deleted) {
-    return c.json(errorResponse("Location not found", 404), 404);
+    return c.json(errorResponse("Location not found"), 404);
+  }
+
+  return c.json(successResponse({ message: "Location deleted successfully" }));
+}
+
+export function deleteLocationById(c: Context) {
+  const dto = c.get("validatedParams") as DeleteLocationIdDto;
+
+  const deleted = container.locationMutationService.deleteLocationById(dto.id);
+
+  if (!deleted) {
+    return c.json(errorResponse("Location not found"), 404);
   }
 
   return c.json(successResponse({ message: "Location deleted successfully" }));
