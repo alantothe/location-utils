@@ -23,7 +23,6 @@ export function EditLocation() {
       title: "",
       category: undefined,
       contactAddress: "",
-      countryCode: "",
       phoneNumber: "",
       website: "",
     },
@@ -36,7 +35,6 @@ export function EditLocation() {
         title: location.title || "",
         category: location.category,
         contactAddress: location.contact.contactAddress || "",
-        countryCode: location.contact.countryCode || "",
         phoneNumber: location.contact.phoneNumber || "",
         website: location.contact.website || "",
       });
@@ -124,12 +122,6 @@ export function EditLocation() {
           placeholder="Contact address (optional)"
         />
 
-        <FormInput
-          name="countryCode"
-          label="Country Code"
-          control={form.control}
-          placeholder="Country code (optional)"
-        />
 
         <FormInput
           name="phoneNumber"

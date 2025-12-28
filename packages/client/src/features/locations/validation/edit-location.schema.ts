@@ -18,10 +18,6 @@ export const editLocationSchema = z.object({
     .string()
     .max(500, "Address must be less than 500 characters")
     .optional(),
-  countryCode: z
-    .string()
-    .max(10, "Country code must be less than 10 characters")
-    .optional(),
   phoneNumber: z
     .string()
     .max(20, "Phone number must be less than 20 characters")
