@@ -10,6 +10,7 @@ export async function clearDatabase(c: Context) {
     .all() as { name: string }[];
   const tables = new Set(tableRows.map((row) => row.name));
 
+  // Clear all rows but keep table structure
   // New normalized tables
   if (tables.has("locations")) {
     db.run("DELETE FROM locations");
@@ -36,11 +37,17 @@ export async function clearDatabase(c: Context) {
     db.run("DELETE FROM sqlite_sequence WHERE name='location_taxonomy'");
   }
 
+  // Clear taxonomy corrections
+  if (tables.has("taxonomy_corrections")) {
+    db.run("DELETE FROM taxonomy_corrections");
+    db.run("DELETE FROM sqlite_sequence WHERE name='taxonomy_corrections'");
+  }
+
   // Clean up file size after mass deletes
   db.run("VACUUM");
 
   const clearedTables = Array.from(tables).filter((name) =>
-    ["locations", "instagram_embeds", "uploads", "location", "location_taxonomy"].includes(name)
+    ["locations", "instagram_embeds", "uploads", "location", "location_taxonomy", "taxonomy_corrections"].includes(name)
   );
 
   return c.json({

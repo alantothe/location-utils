@@ -20,6 +20,7 @@
   --color-popover-foreground: rgba(255, 255, 255, 0.87);
   --color-secondary: #3f3f46;
   --color-secondary-foreground: #f8fafc;
+  --color-black: #000000;
   --radius-lg: 0.5rem;
   --radius-md: calc(0.5rem - 2px);
   --radius-sm: calc(0.5rem - 4px);
@@ -50,6 +51,7 @@
     --color-border: #e4e4e7;
     --color-input: #e4e4e7;
     --color-ring: #18181b;
+    --color-black: #000000;
   }
 
   [data-theme="dark"] {
@@ -70,6 +72,7 @@
     --color-border: #333;
     --color-input: #333;
     --color-ring: #646cff;
+    --color-black: #000000;
   }
 }
 
@@ -104,4 +107,11 @@ a {
 
 a:hover {
   opacity: 0.8;
+}
+
+/* Custom styles for Create Correction button */
+.custom-correction-button {
+  background-color: var(--color-black);
+  box-shadow: none;
+  border-width: 0px;
 }

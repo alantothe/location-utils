@@ -383,13 +383,27 @@ curl -X POST http://localhost:3000/api/add-upload/1 \
 
 ## GET /api/clear-db
 
+Clear all data from the database while preserving table structure.
+
+**Example:**
+```bash
+GET /api/clear-db
+```
+
 **Response:**
 ```json
 {
   "success": true,
-  "message": "Database cleared successfully (locations, instagram_embeds, uploads)"
+  "message": "Database cleared successfully (locations, instagram_embeds, uploads, location_taxonomy, taxonomy_corrections)"
 }
 ```
+
+**Notes:**
+- Deletes all rows from all tables but keeps table structure intact
+- Resets auto-increment sequences to start from 1
+- Runs `VACUUM` to reclaim disk space
+- Safe to call while the server is running - no frontend errors
+- Tables remain queryable (will return empty results)
 
 ---
 

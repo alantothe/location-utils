@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { taxonomyAdminApi } from "../taxonomy-admin.api";
+import { APPROVED_TAXONOMY_QUERY_KEY } from "./useApprovedTaxonomy";
 
 export const PENDING_TAXONOMY_QUERY_KEY = ["admin", "taxonomy", "pending"] as const;
 
@@ -25,6 +26,8 @@ export function useApproveTaxonomy() {
     onSuccess: () => {
       // Invalidate pending taxonomy query to refetch
       queryClient.invalidateQueries({ queryKey: PENDING_TAXONOMY_QUERY_KEY });
+      // Invalidate approved taxonomy query to show newly approved entries
+      queryClient.invalidateQueries({ queryKey: APPROVED_TAXONOMY_QUERY_KEY });
       // Invalidate countries query to show newly approved neighborhood in filters
       queryClient.invalidateQueries({ queryKey: ["countries"] });
     },

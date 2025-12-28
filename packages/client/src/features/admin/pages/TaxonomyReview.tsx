@@ -5,10 +5,10 @@ import { z } from "zod";
 import {
   usePendingTaxonomy,
   useApproveTaxonomy,
-  useRejectTaxonomy,
   useTaxonomyCorrections,
   useCreateTaxonomyCorrection,
   useDeleteTaxonomyCorrection,
+  useApprovedTaxonomy,
 } from "@client/shared/services/api/hooks";
 import { Button } from "@client/components/ui/button";
 import { formatLocationHierarchy } from "@client/shared/lib/utils";
@@ -37,7 +37,6 @@ export function TaxonomyReview() {
   // Pending taxonomy state
   const { data: pendingEntries, isLoading, error } = usePendingTaxonomy();
   const approveMutation = useApproveTaxonomy();
-  const rejectMutation = useRejectTaxonomy();
   const [processingKey, setProcessingKey] = useState<string | null>(null);
 
   // Corrections state
@@ -45,6 +44,9 @@ export function TaxonomyReview() {
   const createCorrectionMutation = useCreateTaxonomyCorrection();
   const deleteCorrectionMutation = useDeleteTaxonomyCorrection();
   const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  // Approved taxonomy state
+  const { data: approvedData, isLoading: approvedLoading } = useApprovedTaxonomy();
 
   // Form state
   const { control, handleSubmit, reset, setValue } = useForm<CorrectionFormData>({
@@ -66,14 +68,6 @@ export function TaxonomyReview() {
     }
   };
 
-  const handleReject = async (locationKey: string) => {
-    setProcessingKey(locationKey);
-    try {
-      await rejectMutation.mutateAsync(locationKey);
-    } finally {
-      setProcessingKey(null);
-    }
-  };
 
   // Correction handlers
   const onSubmit = async (data: CorrectionFormData) => {
@@ -258,13 +252,13 @@ export function TaxonomyReview() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     LocationKey
                   </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  <th className="px-6 py-3 text-center text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
                     Locations Using
                   </th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  <th className="px-6 py-3 text-right text-[10px] font-medium text-muted-foreground uppercase tracking-wider" style={{ width: '320px' }}>
                     Actions
                   </th>
                 </tr>
@@ -273,7 +267,7 @@ export function TaxonomyReview() {
                 {pendingEntries?.map((entry) => (
                   <tr key={entry.locationKey} className="hover:bg-accent">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <code className="text-xs bg-muted px-2 py-1 rounded">
+                      <code className="text-xs bg-muted px-2 py-1 rounded text-foreground">
                         {formatLocationHierarchy(entry.locationKey)}
                       </code>
                     </td>
@@ -289,37 +283,22 @@ export function TaxonomyReview() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                       <Button
-                        onClick={() => handleQuickFill(entry.locationKey)}
-                        variant="outline"
-                        size="sm"
-                      >
-                        Create Correction
-                      </Button>
-                      <Button
                         onClick={() => handleApprove(entry.locationKey)}
                         disabled={processingKey === entry.locationKey}
-                        className="bg-green-600 hover:bg-green-700 text-white"
+                        className="bg-green-600 hover:bg-green-700 text-white border-0"
+                        size="sm"
                       >
                         {processingKey === entry.locationKey && approveMutation.isPending
                           ? "Approving..."
                           : "✓ Approve"}
                       </Button>
                       <Button
-                        onClick={() => handleReject(entry.locationKey)}
-                        disabled={
-                          processingKey === entry.locationKey ||
-                          entry.locationCount > 0
-                        }
-                        className="bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                        title={
-                          entry.locationCount > 0
-                            ? "Cannot reject: locations are using this taxonomy"
-                            : "Reject this taxonomy entry"
-                        }
+                        onClick={() => handleQuickFill(entry.locationKey)}
+                        variant="outline"
+                        size="sm"
+                        className="custom-correction-button"
                       >
-                        {processingKey === entry.locationKey && rejectMutation.isPending
-                          ? "Rejecting..."
-                          : "✗ Reject"}
+                        Create Correction
                       </Button>
                     </td>
                   </tr>
@@ -327,6 +306,67 @@ export function TaxonomyReview() {
               </tbody>
             </table>
           </div>
+        )}
+      </div>
+
+      {/* SECTION 3: APPROVED TAXONOMY */}
+      <div data-theme="light" className="bg-background rounded-lg shadow-lg p-6 mt-6">
+        <div className="mb-6">
+          <h2 className="text-[20px] font-bold mb-2 text-foreground">Approved Taxonomy</h2>
+          <p className="text-muted-foreground">
+            All approved location hierarchies currently available in the system.
+          </p>
+        </div>
+
+        {approvedLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-foreground"></div>
+          </div>
+        ) : approvedData?.locations && approvedData.locations.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-border">
+              <thead className="bg-muted">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Country
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    City
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Neighborhood
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    LocationKey
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-background divide-y divide-border">
+                {approvedData.locations.map((location) => (
+                  <tr key={location.locationKey} className="hover:bg-accent">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm capitalize">
+                      {location.country}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm capitalize">
+                      {location.city || "-"}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm capitalize">
+                      {location.neighborhood || "-"}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <code className="text-xs bg-muted px-2 py-1 rounded text-foreground">
+                        {location.locationKey}
+                      </code>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-center text-muted-foreground py-4">
+            No approved taxonomy entries yet. Approve pending entries above to populate this list.
+          </p>
         )}
       </div>
     </div>

@@ -16,3 +16,7 @@ export {
   useDeleteTaxonomyCorrection,
   TAXONOMY_CORRECTIONS_QUERY_KEY,
 } from "./useTaxonomyCorrections";
+export {
+  useApprovedTaxonomy,
+  APPROVED_TAXONOMY_QUERY_KEY,
+} from "./useApprovedTaxonomy";
