@@ -9,6 +9,8 @@ import type {
   SuccessResponse,
   TaxonomyCorrection,
   TaxonomyCorrectionRequest,
+  CorrectionPreview,
+  CorrectionResult,
 } from "./types";
 
 /**
@@ -72,14 +74,25 @@ export const taxonomyAdminApi = {
   },
 
   /**
-   * Create a new taxonomy correction rule
+   * Preview the impact of a taxonomy correction before creating it
    */
-  async createCorrection(data: TaxonomyCorrectionRequest): Promise<TaxonomyCorrection> {
-    const response = await apiPost<{ correction: TaxonomyCorrection }>(
+  async previewCorrection(data: TaxonomyCorrectionRequest): Promise<CorrectionPreview> {
+    const response = await apiPost<{ preview: CorrectionPreview }>(
+      API_ENDPOINTS.ADMIN_TAXONOMY_CORRECTIONS_PREVIEW,
+      data
+    );
+    return response.preview;
+  },
+
+  /**
+   * Create a new taxonomy correction rule and apply it retroactively
+   */
+  async createCorrection(data: TaxonomyCorrectionRequest): Promise<CorrectionResult> {
+    const response = await apiPost<CorrectionResult>(
       API_ENDPOINTS.ADMIN_TAXONOMY_CORRECTIONS,
       data
     );
-    return response.correction;
+    return response;
   },
 
   /**

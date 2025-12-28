@@ -5,6 +5,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { taxonomyAdminApi } from "../taxonomy-admin.api";
 import type { TaxonomyCorrectionRequest } from "../types";
+import { PENDING_TAXONOMY_QUERY_KEY } from "./usePendingTaxonomy";
 
 /**
  * Query key for taxonomy corrections cache
@@ -22,7 +23,17 @@ export function useTaxonomyCorrections() {
 }
 
 /**
- * Create a new taxonomy correction rule
+ * Preview a taxonomy correction before creating it
+ */
+export function usePreviewTaxonomyCorrection() {
+  return useMutation({
+    mutationFn: (data: TaxonomyCorrectionRequest) =>
+      taxonomyAdminApi.previewCorrection(data),
+  });
+}
+
+/**
+ * Create a new taxonomy correction rule and apply it retroactively
  */
 export function useCreateTaxonomyCorrection() {
   const queryClient = useQueryClient();
@@ -31,7 +42,12 @@ export function useCreateTaxonomyCorrection() {
     mutationFn: (data: TaxonomyCorrectionRequest) =>
       taxonomyAdminApi.createCorrection(data),
     onSuccess: () => {
+      // Invalidate corrections table
       queryClient.invalidateQueries({ queryKey: TAXONOMY_CORRECTIONS_QUERY_KEY });
+      // Invalidate pending taxonomy (we updated them)
+      queryClient.invalidateQueries({ queryKey: PENDING_TAXONOMY_QUERY_KEY });
+      // Invalidate locations (we updated locationKeys)
+      queryClient.invalidateQueries({ queryKey: ["locations"] });
     },
   });
 }

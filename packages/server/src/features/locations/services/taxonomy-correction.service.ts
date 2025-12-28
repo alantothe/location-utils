@@ -4,8 +4,17 @@ import {
   insertCorrection,
   deleteCorrection,
   getCorrectionById,
+  findAffectedPendingTaxonomy,
+  countAffectedLocations,
+  findAffectedLocationSamples,
   type TaxonomyCorrection,
 } from "../repositories/taxonomy-correction.repository";
+import {
+  deduplicatePendingTaxonomy,
+  bulkUpdatePendingTaxonomy,
+} from "../repositories/location-hierarchy.repository";
+import { bulkUpdateLocationKeys } from "../repositories/location.repository";
+import { getDb } from "@server/shared/db/client";
 import { parseLocationValue } from "../utils/location-utils";
 import {
   BadRequestError,
@@ -63,13 +72,73 @@ export class TaxonomyCorrectionService {
   }
 
   /**
-   * Add a new correction rule
+   * Preview the impact of creating a correction rule
+   * Shows how many pending taxonomy entries and locations would be affected
+   */
+  previewCorrection(
+    incorrectValue: string,
+    correctValue: string,
+    partType: "country" | "city" | "neighborhood"
+  ): {
+    pendingTaxonomyCount: number;
+    pendingTaxonomySamples: string[];
+    locationCount: number;
+    locationSamples: Array<{
+      id: number;
+      name: string;
+      currentKey: string;
+      correctedKey: string;
+    }>;
+  } {
+    // Validate inputs (same as addRule)
+    if (!incorrectValue || !correctValue) {
+      throw new BadRequestError(
+        "Both incorrect_value and correct_value are required"
+      );
+    }
+
+    if (incorrectValue === correctValue) {
+      throw new BadRequestError(
+        "Incorrect and correct values cannot be the same"
+      );
+    }
+
+    // Find affected pending taxonomy entries
+    const affectedPending = findAffectedPendingTaxonomy(
+      incorrectValue,
+      partType
+    );
+
+    // Count total affected locations
+    const locationCount = countAffectedLocations(incorrectValue, partType);
+
+    // Get sample locations with before/after
+    const locationSamples = findAffectedLocationSamples(
+      incorrectValue,
+      correctValue,
+      partType
+    );
+
+    return {
+      pendingTaxonomyCount: affectedPending.length,
+      pendingTaxonomySamples: affectedPending.map((entry) => entry.locationKey),
+      locationCount,
+      locationSamples,
+    };
+  }
+
+  /**
+   * Add a new correction rule and retroactively apply it to existing data
    */
   addRule(
     incorrectValue: string,
     correctValue: string,
     partType: "country" | "city" | "neighborhood"
-  ): TaxonomyCorrection {
+  ): {
+    correction: TaxonomyCorrection;
+    updatedPendingCount: number;
+    updatedLocationCount: number;
+  } {
     // Validate inputs
     if (!incorrectValue || !correctValue) {
       throw new BadRequestError(
@@ -83,15 +152,50 @@ export class TaxonomyCorrectionService {
       );
     }
 
-    const inserted = insertCorrection(incorrectValue, correctValue, partType);
+    const db = getDb();
 
-    if (!inserted) {
-      throw new BadRequestError(
-        "Failed to create correction rule (may already exist)"
+    try {
+      // Begin transaction
+      db.run("BEGIN TRANSACTION");
+
+      // 1. Insert correction rule
+      const inserted = insertCorrection(incorrectValue, correctValue, partType);
+      if (!inserted) {
+        throw new BadRequestError(
+          "Failed to create correction rule (may already exist)"
+        );
+      }
+
+      // 2. Deduplicate pending entries (prevent UNIQUE constraint violation)
+      deduplicatePendingTaxonomy(incorrectValue, correctValue, partType);
+
+      // 3. Bulk update pending taxonomy entries
+      const pendingCount = bulkUpdatePendingTaxonomy(
+        incorrectValue,
+        correctValue,
+        partType
       );
-    }
 
-    return inserted;
+      // 4. Bulk update location records
+      const locationCount = bulkUpdateLocationKeys(
+        incorrectValue,
+        correctValue,
+        partType
+      );
+
+      // Commit transaction
+      db.run("COMMIT");
+
+      return {
+        correction: inserted,
+        updatedPendingCount: pendingCount,
+        updatedLocationCount: locationCount,
+      };
+    } catch (error) {
+      // Rollback on error
+      db.run("ROLLBACK");
+      throw error;
+    }
   }
 
   /**

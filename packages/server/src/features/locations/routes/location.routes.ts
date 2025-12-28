@@ -28,6 +28,7 @@ import {
 } from "../controllers/taxonomy-admin.controller";
 import {
   getAllCorrections,
+  previewCorrection,
   createCorrection,
   deleteCorrection,
 } from "../controllers/taxonomy-correction.controller";
@@ -74,6 +75,11 @@ app.delete(
 
 // Admin taxonomy correction routes
 app.get("/api/admin/taxonomy/corrections", getAllCorrections);
+app.post(
+  "/api/admin/taxonomy/corrections/preview",
+  validateBody(createCorrectionSchema),
+  previewCorrection
+);
 app.post(
   "/api/admin/taxonomy/corrections",
   validateBody(createCorrectionSchema),

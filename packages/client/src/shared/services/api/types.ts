@@ -240,3 +240,21 @@ export interface TaxonomyCorrection extends TaxonomyCorrectionRequest {
   id: number;
   created_at: string;
 }
+
+export interface CorrectionPreview {
+  pendingTaxonomyCount: number;
+  pendingTaxonomySamples: string[];
+  locationCount: number;
+  locationSamples: Array<{
+    id: number;
+    name: string;
+    currentKey: string;
+    correctedKey: string;
+  }>;
+}
+
+export interface CorrectionResult {
+  correction: TaxonomyCorrection;
+  updatedPendingCount: number;
+  updatedLocationCount: number;
+}

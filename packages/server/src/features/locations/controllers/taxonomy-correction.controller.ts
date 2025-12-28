@@ -15,17 +15,37 @@ export function getAllCorrections(c: Context) {
 }
 
 /**
- * POST /api/admin/taxonomy/corrections
- * Create a new correction rule
+ * POST /api/admin/taxonomy/corrections/preview
+ * Preview the impact of a correction before creating it
  */
-export function createCorrection(c: Context) {
+export function previewCorrection(c: Context) {
   const dto = c.get("validatedBody") as CreateCorrectionDto;
-  const correction = container.taxonomyCorrectionService.addRule(
+  const preview = container.taxonomyCorrectionService.previewCorrection(
     dto.incorrect_value,
     dto.correct_value,
     dto.part_type
   );
-  return c.json(successResponse({ correction }));
+  return c.json(successResponse({ preview }));
+}
+
+/**
+ * POST /api/admin/taxonomy/corrections
+ * Create a new correction rule and apply it retroactively
+ */
+export function createCorrection(c: Context) {
+  const dto = c.get("validatedBody") as CreateCorrectionDto;
+  const result = container.taxonomyCorrectionService.addRule(
+    dto.incorrect_value,
+    dto.correct_value,
+    dto.part_type
+  );
+  return c.json(
+    successResponse({
+      correction: result.correction,
+      updatedPendingCount: result.updatedPendingCount,
+      updatedLocationCount: result.updatedLocationCount,
+    })
+  );
 }
 
 /**

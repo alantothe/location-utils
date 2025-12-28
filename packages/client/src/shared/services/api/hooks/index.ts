@@ -12,6 +12,7 @@ export {
 } from "./usePendingTaxonomy";
 export {
   useTaxonomyCorrections,
+  usePreviewTaxonomyCorrection,
   useCreateTaxonomyCorrection,
   useDeleteTaxonomyCorrection,
   TAXONOMY_CORRECTIONS_QUERY_KEY,

@@ -274,3 +274,48 @@ export function getLocationsInScope(locationKey: string): Location[] {
     (loc) => loc.locationKey && isLocationInScope(loc.locationKey, locationKey)
   );
 }
+
+/**
+ * Update all locations by replacing a value in locationKey
+ * @param incorrectValue - The value to search for
+ * @param correctValue - The value to replace with
+ * @param partType - Which part of the locationKey to match
+ * @returns Count of updated locations
+ */
+export function bulkUpdateLocationKeys(
+  incorrectValue: string,
+  correctValue: string,
+  partType: "country" | "city" | "neighborhood"
+): number {
+  const db = getDb();
+
+  // Build LIKE pattern based on part type
+  let likePattern: string;
+  if (partType === "country") {
+    likePattern = `${incorrectValue}%`;
+  } else if (partType === "city") {
+    likePattern = `%|${incorrectValue}%`;
+  } else {
+    // neighborhood
+    likePattern = `%|${incorrectValue}`;
+  }
+
+  try {
+    const query = db.query(`
+      UPDATE locations
+      SET locationKey = REPLACE(locationKey, $incorrectValue, $correctValue)
+      WHERE locationKey LIKE $pattern
+    `);
+
+    const result = query.run({
+      $incorrectValue: incorrectValue,
+      $correctValue: correctValue,
+      $pattern: likePattern
+    });
+
+    return result.changes;
+  } catch (error) {
+    console.error("Error bulk updating location keys:", error);
+    return 0;
+  }
+}

@@ -229,3 +229,112 @@ export function getLocationCountByTaxonomy(locationKey: string): number {
   const result = query.get({ $locationKey: locationKey }) as { count: number };
   return result.count;
 }
+
+/**
+ * Remove duplicate pending taxonomy entries before bulk update
+ * Keeps oldest entry for each unique corrected locationKey
+ * @returns Count of deleted duplicate entries
+ */
+export function deduplicatePendingTaxonomy(
+  incorrectValue: string,
+  correctValue: string,
+  partType: "country" | "city" | "neighborhood"
+): number {
+  const db = getDb();
+
+  // Build LIKE pattern based on part type
+  let likePattern: string;
+  if (partType === "country") {
+    likePattern = `${incorrectValue}%`;
+  } else if (partType === "city") {
+    likePattern = `%|${incorrectValue}%`;
+  } else {
+    // neighborhood
+    likePattern = `%|${incorrectValue}`;
+  }
+
+  try {
+    const query = db.query(`
+      WITH corrected_keys AS (
+        SELECT
+          id,
+          REPLACE(locationKey, $incorrectValue, $correctValue) as new_key,
+          created_at,
+          ROW_NUMBER() OVER (
+            PARTITION BY REPLACE(locationKey, $incorrectValue, $correctValue)
+            ORDER BY created_at ASC
+          ) as rn
+        FROM location_taxonomy
+        WHERE status = 'pending' AND locationKey LIKE $pattern
+      )
+      DELETE FROM location_taxonomy
+      WHERE id IN (SELECT id FROM corrected_keys WHERE rn > 1)
+    `);
+
+    const result = query.run({
+      $incorrectValue: incorrectValue,
+      $correctValue: correctValue,
+      $pattern: likePattern
+    });
+
+    return result.changes;
+  } catch (error) {
+    console.error("Error deduplicating pending taxonomy:", error);
+    return 0;
+  }
+}
+
+/**
+ * Update all pending taxonomy entries by replacing a value in locationKey
+ * @returns Count of updated entries
+ */
+export function bulkUpdatePendingTaxonomy(
+  incorrectValue: string,
+  correctValue: string,
+  partType: "country" | "city" | "neighborhood"
+): number {
+  const db = getDb();
+
+  // Build LIKE pattern based on part type
+  let likePattern: string;
+  if (partType === "country") {
+    likePattern = `${incorrectValue}%`;
+  } else if (partType === "city") {
+    likePattern = `%|${incorrectValue}%`;
+  } else {
+    // neighborhood
+    likePattern = `%|${incorrectValue}`;
+  }
+
+  try {
+    // Build dynamic SET clause for the part column
+    let partColumnUpdate = "";
+    if (partType === "country") {
+      partColumnUpdate = "country = CASE WHEN country = $incorrectValue THEN $correctValue ELSE country END,";
+    } else if (partType === "city") {
+      partColumnUpdate = "city = CASE WHEN city = $incorrectValue THEN $correctValue ELSE city END,";
+    } else {
+      partColumnUpdate = "neighborhood = CASE WHEN neighborhood = $incorrectValue THEN $correctValue ELSE neighborhood END,";
+    }
+
+    const sql = `
+      UPDATE location_taxonomy
+      SET
+        ${partColumnUpdate}
+        locationKey = REPLACE(locationKey, $incorrectValue, $correctValue)
+      WHERE status = 'pending' AND locationKey LIKE $pattern
+    `;
+
+    const query = db.query(sql);
+    const result = query.run({
+      $incorrectValue: incorrectValue,
+      $correctValue: correctValue,
+      $pattern: likePattern
+    });
+
+    return result.changes;
+  } catch (error) {
+    console.error("Error bulk updating pending taxonomy:", error);
+    return 0;
+  }
+}

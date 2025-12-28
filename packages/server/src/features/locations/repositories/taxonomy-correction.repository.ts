@@ -97,3 +97,121 @@ export function getCorrectionById(id: number): TaxonomyCorrection | null {
   `);
   return query.get({ $id: id }) as TaxonomyCorrection | null;
 }
+
+/**
+ * Find all pending taxonomy entries that contain a specific value
+ * @param incorrectValue - The value to search for
+ * @param partType - Which part of the locationKey to match (country/city/neighborhood)
+ * @returns Array of pending taxonomy entries that would be affected
+ */
+export function findAffectedPendingTaxonomy(
+  incorrectValue: string,
+  partType: "country" | "city" | "neighborhood"
+): Array<{ locationKey: string; country: string; city: string; neighborhood: string }> {
+  const db = getDb();
+
+  // Build LIKE pattern based on part type
+  let likePattern: string;
+  if (partType === "country") {
+    likePattern = `${incorrectValue}%`; // Start of locationKey
+  } else if (partType === "city") {
+    likePattern = `%|${incorrectValue}%`; // Middle or end part (after first pipe)
+  } else {
+    // neighborhood
+    likePattern = `%|${incorrectValue}`; // End part only
+  }
+
+  const query = db.query(`
+    SELECT locationKey, country, city, neighborhood
+    FROM location_taxonomy
+    WHERE status = 'pending' AND locationKey LIKE $pattern
+    ORDER BY created_at ASC
+    LIMIT 5
+  `);
+
+  return query.all({ $pattern: likePattern }) as Array<{
+    locationKey: string;
+    country: string;
+    city: string;
+    neighborhood: string;
+  }>;
+}
+
+/**
+ * Count locations with locationKeys containing a specific value
+ * @param incorrectValue - The value to search for
+ * @param partType - Which part of the locationKey to match
+ * @returns Count of affected locations
+ */
+export function countAffectedLocations(
+  incorrectValue: string,
+  partType: "country" | "city" | "neighborhood"
+): number {
+  const db = getDb();
+
+  // Build LIKE pattern based on part type
+  let likePattern: string;
+  if (partType === "country") {
+    likePattern = `${incorrectValue}%`;
+  } else if (partType === "city") {
+    likePattern = `%|${incorrectValue}%`;
+  } else {
+    // neighborhood
+    likePattern = `%|${incorrectValue}`;
+  }
+
+  const query = db.query(`
+    SELECT COUNT(*) as count
+    FROM locations
+    WHERE locationKey LIKE $pattern
+  `);
+
+  const result = query.get({ $pattern: likePattern }) as { count: number } | null;
+  return result?.count || 0;
+}
+
+/**
+ * Find sample locations that would be affected by a correction
+ * @param incorrectValue - The value to search for
+ * @param partType - Which part of the locationKey to match
+ * @returns Array of sample locations (up to 5) with current and corrected keys
+ */
+export function findAffectedLocationSamples(
+  incorrectValue: string,
+  correctValue: string,
+  partType: "country" | "city" | "neighborhood"
+): Array<{ id: number; name: string; currentKey: string; correctedKey: string }> {
+  const db = getDb();
+
+  // Build LIKE pattern based on part type
+  let likePattern: string;
+  if (partType === "country") {
+    likePattern = `${incorrectValue}%`;
+  } else if (partType === "city") {
+    likePattern = `%|${incorrectValue}%`;
+  } else {
+    // neighborhood
+    likePattern = `%|${incorrectValue}`;
+  }
+
+  const query = db.query(`
+    SELECT id, name, locationKey
+    FROM locations
+    WHERE locationKey LIKE $pattern
+    LIMIT 5
+  `);
+
+  const results = query.all({ $pattern: likePattern }) as Array<{
+    id: number;
+    name: string;
+    locationKey: string;
+  }>;
+
+  // Compute corrected locationKey for each result
+  return results.map((row) => ({
+    id: row.id,
+    name: row.name,
+    currentKey: row.locationKey,
+    correctedKey: row.locationKey.replace(incorrectValue, correctValue),
+  }));
+}
