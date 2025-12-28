@@ -10,6 +10,7 @@ import { LocationQueryService } from "../services/location-query.service";
 import { LocationMutationService } from "../services/location-mutation.service";
 import { TaxonomyService } from "../services/taxonomy.service";
 import { DistrictExtractionService } from "../services/district-extraction.service";
+import { TaxonomyCorrectionService } from "../services/taxonomy-correction.service";
 
 export class ServiceContainer {
   private static instance: ServiceContainer;
@@ -21,6 +22,7 @@ export class ServiceContainer {
   readonly geoapifyClient: GeoapifyClient;
   readonly districtExtractionService: DistrictExtractionService;
   readonly taxonomyService: TaxonomyService;
+  readonly taxonomyCorrectionService: TaxonomyCorrectionService;
   readonly mapsService: MapsService;
   readonly instagramService: InstagramService;
   readonly uploadsService: UploadsService;
@@ -36,9 +38,14 @@ export class ServiceContainer {
     this.geoapifyClient = new GeoapifyClient(this.config.GEOAPIFY_API_KEY || "");
     this.districtExtractionService = new DistrictExtractionService();
     this.taxonomyService = new TaxonomyService();
+    this.taxonomyCorrectionService = new TaxonomyCorrectionService();
 
     // Services with dependencies
-    this.mapsService = new MapsService(this.config, this.taxonomyService);
+    this.mapsService = new MapsService(
+      this.config,
+      this.taxonomyService,
+      this.taxonomyCorrectionService
+    );
     this.instagramService = new InstagramService(
       this.instagramApi,
       this.imageStorage

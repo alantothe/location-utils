@@ -17,11 +17,13 @@ import { getUploadsByLocationId } from "../repositories/upload.repository";
 import { transformLocationToResponse } from "../utils/location-utils";
 import { validateCategory, validateCategoryWithDefault } from "../utils/category-utils";
 import { TaxonomyService } from "./taxonomy.service";
+import { TaxonomyCorrectionService } from "./taxonomy-correction.service";
 
 export class MapsService {
   constructor(
     private readonly config: EnvConfig,
-    private readonly taxonomyService: TaxonomyService
+    private readonly taxonomyService: TaxonomyService,
+    private readonly taxonomyCorrectionService: TaxonomyCorrectionService
   ) {}
 
   async addMapsLocation(payload: CreateMapsRequest): Promise<LocationResponse> {
@@ -35,8 +37,10 @@ export class MapsService {
     const apiKey = this.config.hasGoogleMapsKey() ? this.config.GOOGLE_MAPS_API_KEY : undefined;
     const entry = await createFromMaps(payload.name, payload.address, apiKey, category);
 
-    // Ensure taxonomy entry exists (create as pending if new)
+    // Apply corrections and ensure taxonomy entry exists (create as pending if new)
     if (entry.locationKey) {
+      // Apply corrections BEFORE ensuring taxonomy
+      entry.locationKey = this.taxonomyCorrectionService.applyCorrections(entry.locationKey);
       this.taxonomyService.ensureTaxonomyEntry(entry.locationKey);
     }
 
@@ -62,8 +66,10 @@ export class MapsService {
     // Validate category if provided
     const category = updates.category ? validateCategory(updates.category) : undefined;
 
-    // If updating locationKey, ensure taxonomy entry exists
+    // If updating locationKey, apply corrections and ensure taxonomy entry exists
     if (updates.locationKey !== undefined && updates.locationKey) {
+      // Apply corrections BEFORE ensuring taxonomy
+      updates.locationKey = this.taxonomyCorrectionService.applyCorrections(updates.locationKey);
       this.taxonomyService.ensureTaxonomyEntry(updates.locationKey);
     }
 

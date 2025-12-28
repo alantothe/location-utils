@@ -140,21 +140,46 @@ export function updateLocationById(id: number, updates: Partial<Location>): bool
 
 export function getAllLocations(): Location[] {
   const db = getDb();
-  const query = db.query("SELECT id, name, title, address, url, lat, lng, category, locationKey, district, contactAddress, countryCode, phoneNumber, website, slug, created_at FROM locations ORDER BY created_at DESC");
+  const query = db.query(`
+    SELECT DISTINCT l.id, l.name, l.title, l.address, l.url, l.lat, l.lng,
+           l.category, l.locationKey, l.district, l.contactAddress,
+           l.countryCode, l.phoneNumber, l.website, l.slug, l.created_at
+    FROM locations l
+    LEFT JOIN location_taxonomy t ON l.locationKey = t.locationKey
+    WHERE l.locationKey IS NULL OR t.status = 'approved'
+    ORDER BY l.created_at DESC
+  `);
   const rows = query.all() as any[];
   return rows.map(mapRow);
 }
 
 export function getLocationsByCategory(category: string): Location[] {
   const db = getDb();
-  const query = db.query("SELECT id, name, title, address, url, lat, lng, category, locationKey, district, contactAddress, countryCode, phoneNumber, website, slug, created_at FROM locations WHERE category = $category ORDER BY created_at DESC");
+  const query = db.query(`
+    SELECT DISTINCT l.id, l.name, l.title, l.address, l.url, l.lat, l.lng,
+           l.category, l.locationKey, l.district, l.contactAddress,
+           l.countryCode, l.phoneNumber, l.website, l.slug, l.created_at
+    FROM locations l
+    LEFT JOIN location_taxonomy t ON l.locationKey = t.locationKey
+    WHERE l.category = $category
+      AND (l.locationKey IS NULL OR t.status = 'approved')
+    ORDER BY l.created_at DESC
+  `);
   const rows = query.all({ $category: category }) as any[];
   return rows.map(mapRow);
 }
 
 export function getLocationById(id: number): Location | null {
   const db = getDb();
-  const query = db.query("SELECT id, name, title, address, url, lat, lng, category, locationKey, district, contactAddress, countryCode, phoneNumber, website, slug, created_at FROM locations WHERE id = $id");
+  const query = db.query(`
+    SELECT DISTINCT l.id, l.name, l.title, l.address, l.url, l.lat, l.lng,
+           l.category, l.locationKey, l.district, l.contactAddress,
+           l.countryCode, l.phoneNumber, l.website, l.slug, l.created_at
+    FROM locations l
+    LEFT JOIN location_taxonomy t ON l.locationKey = t.locationKey
+    WHERE l.id = $id
+      AND (l.locationKey IS NULL OR t.status = 'approved')
+  `);
   const row = query.get({ $id: id }) as any;
   if (!row) return null;
   return mapRow(row);

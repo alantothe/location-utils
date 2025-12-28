@@ -9,6 +9,7 @@ import { addCategoryConstraint } from "./migrations/add-category-constraint";
 import { addLocationSlug } from "./migrations/add-location-slug";
 import { addTaxonomyStatus } from "./migrations/add-taxonomy-status";
 import { addLocationDistrict } from "./migrations/add-location-district";
+import { addTaxonomyCorrections } from "./migrations/add-taxonomy-corrections";
 
 let db: Database | null = null;
 
@@ -143,6 +144,9 @@ export function initDb() {
 
   // Run migration to add district column to locations table
   addLocationDistrict(database);
+
+  // Run migration to add taxonomy corrections table and fix data
+  addTaxonomyCorrections(database);
 }
 
 export function getDb(): Database {

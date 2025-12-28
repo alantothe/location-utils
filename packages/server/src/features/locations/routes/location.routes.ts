@@ -5,6 +5,7 @@ import { addInstagramSchema, addInstagramParamsSchema } from "../validation/sche
 import { addUploadParamsSchema } from "../validation/schemas/uploads.schemas";
 import { listLocationsQuerySchema, deleteLocationSlugSchema, deleteLocationIdSchema } from "../validation/schemas/locations.schemas";
 import { taxonomyLocationKeyParamsSchema } from "../validation/schemas/taxonomy.schemas";
+import { createCorrectionSchema, deleteCorrectionParamsSchema } from "../validation/schemas/taxonomy-correction.schemas";
 
 // Import new controllers
 import { getLocations, getLocationsBasic, getLocationById, deleteLocationBySlug, deleteLocationById } from "../controllers/locations.controller";
@@ -25,6 +26,11 @@ import {
   approveTaxonomy,
   rejectTaxonomy,
 } from "../controllers/taxonomy-admin.controller";
+import {
+  getAllCorrections,
+  createCorrection,
+  deleteCorrection,
+} from "../controllers/taxonomy-correction.controller";
 
 // Location routes
 app.get("/api/locations", validateQuery(listLocationsQuerySchema), getLocations);
@@ -64,6 +70,19 @@ app.delete(
   "/api/admin/taxonomy/:locationKey/reject",
   validateParams(taxonomyLocationKeyParamsSchema),
   rejectTaxonomy
+);
+
+// Admin taxonomy correction routes
+app.get("/api/admin/taxonomy/corrections", getAllCorrections);
+app.post(
+  "/api/admin/taxonomy/corrections",
+  validateBody(createCorrectionSchema),
+  createCorrection
+);
+app.delete(
+  "/api/admin/taxonomy/corrections/:id",
+  validateParams(deleteCorrectionParamsSchema),
+  deleteCorrection
 );
 
 // Serve uploaded images
