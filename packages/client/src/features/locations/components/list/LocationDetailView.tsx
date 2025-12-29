@@ -129,17 +129,57 @@ export function LocationDetailView({ locationDetail, isLoading, error, onCopyFie
                 Instagram Posts:
               </span>
               <ul className="space-y-1 ml-4">
-                {locationDetail.instagram_embeds.map((embed) => (
-                  <li key={embed.id}>
-                    <span
-                      className="text-sm text-blue-600 hover:text-blue-700 cursor-pointer underline underline-offset-2 decoration-gray-400 hover:decoration-gray-600 transition-colors"
-                      onClick={(e) => onCopyField(`@${embed.username}`, e)}
-                      title="Click to copy Instagram username"
-                    >
-                      @{embed.username}
-                    </span>
-                  </li>
-                ))}
+                {locationDetail.instagram_embeds.map((embed) => {
+                  // Get first image if available
+                  const firstImage = embed.images?.[0];
+                  const imageUrl = firstImage
+                    ? `/api/images/${firstImage.replace(/^data\/images\//, '')}`
+                    : null;
+
+                  return (
+                    <li key={embed.id} className="flex items-center gap-2">
+                      {/* Thumbnail icon */}
+                      {imageUrl && (
+                        <a
+                          href={imageUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-shrink-0 w-8 h-8 overflow-hidden rounded bg-gray-100 hover:opacity-80 transition-opacity"
+                          title="View image"
+                        >
+                          <img
+                            src={imageUrl}
+                            alt="Instagram"
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                          />
+                        </a>
+                      )}
+
+                      {/* Username */}
+                      <span
+                        className="text-sm text-blue-600 hover:text-blue-700 cursor-pointer underline underline-offset-2 decoration-gray-400 hover:decoration-gray-600 transition-colors"
+                        onClick={(e) => onCopyField(`@${embed.username}`, e)}
+                        title="Click to copy Instagram username"
+                      >
+                        @{embed.username}
+                      </span>
+
+                      {/* Post link */}
+                      {embed.url && (
+                        <a
+                          href={embed.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-gray-500 hover:text-gray-700"
+                          title="Open Instagram post"
+                        >
+                          ↗
+                        </a>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           )}
