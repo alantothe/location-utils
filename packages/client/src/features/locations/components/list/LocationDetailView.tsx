@@ -1,6 +1,7 @@
 import type { LocationResponse } from "@client/shared/services/api/types";
 import { truncateUrl } from "../../utils";
 import { DetailField } from "./DetailField";
+import { AddInstagramEmbedForm } from "../forms/AddInstagramEmbedForm";
 
 interface LocationDetailViewProps {
   locationDetail: LocationResponse | null | undefined;
@@ -116,27 +117,33 @@ export function LocationDetailView({ locationDetail, isLoading, error, onCopyFie
           </div>
         )}
 
-        {/* Instagram embeds section */}
-        {locationDetail.instagram_embeds && locationDetail.instagram_embeds.length > 0 && (
-          <div className="space-y-2">
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-              Instagram Posts:
-            </span>
-            <ul className="space-y-1 ml-4">
-              {locationDetail.instagram_embeds.map((embed) => (
-                <li key={embed.id}>
-                  <span
-                    className="text-sm text-blue-600 hover:text-blue-700 cursor-pointer underline underline-offset-2 decoration-gray-400 hover:decoration-gray-600 transition-colors"
-                    onClick={(e) => onCopyField(`@${embed.username}`, e)}
-                    title="Click to copy Instagram username"
-                  >
-                    @{embed.username}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        {/* Instagram Section: Form + Embeds */}
+        <div className="space-y-4">
+          {/* Add Instagram Embed Form */}
+          <AddInstagramEmbedForm locationId={locationDetail.id} />
+
+          {/* Existing Instagram Embeds List */}
+          {locationDetail.instagram_embeds && locationDetail.instagram_embeds.length > 0 && (
+            <div className="space-y-2">
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                Instagram Posts:
+              </span>
+              <ul className="space-y-1 ml-4">
+                {locationDetail.instagram_embeds.map((embed) => (
+                  <li key={embed.id}>
+                    <span
+                      className="text-sm text-blue-600 hover:text-blue-700 cursor-pointer underline underline-offset-2 decoration-gray-400 hover:decoration-gray-600 transition-colors"
+                      onClick={(e) => onCopyField(`@${embed.username}`, e)}
+                      title="Click to copy Instagram username"
+                    >
+                      @{embed.username}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
 
         {/* Uploads section */}
         {locationDetail.uploads && locationDetail.uploads.length > 0 && (

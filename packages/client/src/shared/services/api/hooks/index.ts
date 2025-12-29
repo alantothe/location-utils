@@ -4,6 +4,7 @@ export { useCreateLocation } from "./useCreateLocation";
 export { useDeleteLocation } from "./useDeleteLocation";
 export { useLocationById, LOCATION_BY_ID_QUERY_KEY } from "./useLocationById";
 export { useUpdateLocation } from "./useUpdateLocation";
+export { useAddInstagramEmbed } from "./useAddInstagramEmbed";
 export {
   usePendingTaxonomy,
   useApproveTaxonomy,
