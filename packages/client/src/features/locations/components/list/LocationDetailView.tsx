@@ -140,12 +140,14 @@ export function LocationDetailView({ locationDetail, isLoading, error, onCopyFie
                     <li key={embed.id}>
                       {/* Thumbnail icon */}
                       {imageUrl && (
-                        <div className="flex-shrink-0 w-[120px] h-[120px] overflow-hidden rounded bg-gray-100">
+                        <div className="shrink-0 w-[120px] h-[120px] overflow-hidden rounded bg-gray-100 hover:ring-2 ring-blue-400 transition-all">
                           <img
                             src={imageUrl}
                             alt="Instagram"
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
                             loading="lazy"
+                            onClick={(e) => onCopyField(embed.embed_code, e)}
+                            title="Click to copy Instagram embed code"
                           />
                         </div>
                       )}
