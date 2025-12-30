@@ -7,6 +7,13 @@ export const addUploadParamsSchema = z.object({
 
 export type AddUploadParamsDto = z.infer<typeof addUploadParamsSchema>;
 
+// URL parameter schema for DELETE /api/uploads/:id
+export const deleteUploadParamsSchema = z.object({
+  id: z.string().regex(/^\d+$/, "Upload ID must be a number"),
+});
+
+export type DeleteUploadParamsDto = z.infer<typeof deleteUploadParamsSchema>;
+
 const ALLOWED_MIME_TYPES = [
   "image/jpeg",
   "image/png",

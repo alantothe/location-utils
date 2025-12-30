@@ -3,7 +3,7 @@
  */
 
 import { apiGet, apiPost, apiPatch, apiPostFormData, apiDelete, unwrapEntry } from "./client";
-import { API_ENDPOINTS } from "./config";
+import { API_ENDPOINTS, API_BASE_URL } from "./config";
 import type {
   LocationsResponse,
   LocationsBasicResponse,
@@ -77,12 +77,13 @@ export const locationsApi = {
   },
 
   /**
-   * Upload files to a location
+   * Upload files to a location with progress tracking
    */
   async uploadFiles(
     locationId: number,
     files: File[],
-    photographerCredit?: string
+    photographerCredit?: string,
+    onProgress?: (percent: number) => void
   ): Promise<UploadResponse["entry"]> {
     const formData = new FormData();
 
@@ -94,11 +95,43 @@ export const locationsApi = {
       formData.append("files", file);
     });
 
-    const response = await apiPostFormData<UploadResponse>(
-      API_ENDPOINTS.ADD_UPLOAD(locationId),
-      formData
-    );
-    return unwrapEntry(response);
+    // Use XMLHttpRequest for progress tracking
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+
+      xhr.upload.addEventListener("progress", (e) => {
+        if (e.lengthComputable && onProgress) {
+          const percent = Math.round((e.loaded / e.total) * 100);
+          onProgress(percent);
+        }
+      });
+
+      xhr.addEventListener("load", () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const response = JSON.parse(xhr.responseText) as UploadResponse;
+            resolve(unwrapEntry(response));
+          } catch (error) {
+            reject(new Error("Failed to parse response"));
+          }
+        } else {
+          reject(new Error(`Upload failed: ${xhr.statusText}`));
+        }
+      });
+
+      xhr.addEventListener("error", () => reject(new Error("Upload failed")));
+      xhr.addEventListener("abort", () => reject(new Error("Upload cancelled")));
+
+      xhr.open("POST", `${API_BASE_URL}${API_ENDPOINTS.ADD_UPLOAD(locationId)}`);
+      xhr.send(formData);
+    });
+  },
+
+  /**
+   * Delete an upload by ID
+   */
+  async deleteUpload(uploadId: number): Promise<void> {
+    await apiDelete(API_ENDPOINTS.DELETE_UPLOAD(uploadId));
   },
 
   /**

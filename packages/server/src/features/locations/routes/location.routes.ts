@@ -2,7 +2,7 @@ import { app } from "@server/shared/http/server";
 import { validateBody, validateParams, validateQuery } from "@server/shared/core/middleware/validation.middleware";
 import { createMapsSchema, patchMapsSchema } from "../validation/schemas/maps.schemas";
 import { addInstagramSchema, addInstagramParamsSchema } from "../validation/schemas/instagram.schemas";
-import { addUploadParamsSchema } from "../validation/schemas/uploads.schemas";
+import { addUploadParamsSchema, deleteUploadParamsSchema } from "../validation/schemas/uploads.schemas";
 import { listLocationsQuerySchema, deleteLocationSlugSchema, deleteLocationIdSchema } from "../validation/schemas/locations.schemas";
 import { taxonomyLocationKeyParamsSchema } from "../validation/schemas/taxonomy.schemas";
 import { createCorrectionSchema, deleteCorrectionParamsSchema } from "../validation/schemas/taxonomy-correction.schemas";
@@ -12,7 +12,7 @@ import { syncLocationIdSchema, syncAllSchema } from "../validation/schemas/paylo
 import { getLocations, getLocationsBasic, getLocationById, deleteLocationBySlug, deleteLocationById } from "../controllers/locations.controller";
 import { postAddMaps, patchMapsById } from "../controllers/maps.controller";
 import { postAddInstagram } from "../controllers/instagram.controller";
-import { postAddUpload } from "../controllers/uploads.controller";
+import { postAddUpload, deleteUpload } from "../controllers/uploads.controller";
 import { serveImage } from "../controllers/files.controller";
 import {
   getLocationHierarchy,
@@ -57,6 +57,11 @@ app.post(
   "/api/add-upload/:id",
   validateParams(addUploadParamsSchema),
   postAddUpload
+);
+app.delete(
+  "/api/uploads/:id",
+  validateParams(deleteUploadParamsSchema),
+  deleteUpload
 );
 app.get("/api/clear-db", clearDatabase);
 

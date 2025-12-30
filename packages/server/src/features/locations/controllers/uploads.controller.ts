@@ -1,8 +1,8 @@
 import type { Context } from "hono";
 import { ServiceContainer } from "../container/service-container";
 import { successResponse } from "@shared/types/api-response";
-import { BadRequestError } from "@shared/errors/http-error";
-import { MAX_FILE_SIZE, MAX_FILES, MAX_TOTAL_SIZE, type AddUploadParamsDto } from "../validation/schemas/uploads.schemas";
+import { BadRequestError, NotFoundError } from "@shared/errors/http-error";
+import { MAX_FILE_SIZE, MAX_FILES, MAX_TOTAL_SIZE, type AddUploadParamsDto, type DeleteUploadParamsDto } from "../validation/schemas/uploads.schemas";
 
 const container = ServiceContainer.getInstance();
 
@@ -54,4 +54,28 @@ export async function postAddUpload(c: Context) {
 
   const entry = await container.uploadsService.addUploadFiles(locationId, files, photographerCreditValue);
   return c.json(successResponse({ entry }));
+}
+
+export async function deleteUpload(c: Context) {
+  // Extract validated URL parameter
+  const params = c.get("validatedParams") as DeleteUploadParamsDto;
+  const uploadId = parseInt(params.id, 10);
+
+  if (isNaN(uploadId)) {
+    throw new BadRequestError("Invalid upload ID");
+  }
+
+  const { getUploadById, deleteUploadById } = await import("../repositories/upload.repository");
+
+  const upload = getUploadById(uploadId);
+  if (!upload) {
+    throw new NotFoundError(`Upload ${uploadId} not found`);
+  }
+
+  const success = deleteUploadById(uploadId);
+  if (!success) {
+    throw new Error("Failed to delete upload");
+  }
+
+  return c.json(successResponse({ message: "Upload deleted successfully" }));
 }

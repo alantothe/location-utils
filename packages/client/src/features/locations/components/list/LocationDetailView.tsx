@@ -1,7 +1,14 @@
-import type { LocationResponse } from "@client/shared/services/api/types";
+import { useState } from "react";
+import type { LocationResponse, Upload } from "@client/shared/services/api/types";
 import { truncateUrl } from "../../utils";
 import { DetailField } from "./DetailField";
 import { AddInstagramEmbedForm } from "../forms/AddInstagramEmbedForm";
+import { AddUploadFilesForm } from "../forms/AddUploadFilesForm";
+import { ImageLightbox } from "../ui/ImageLightbox";
+import { Button } from "@client/components/ui/button";
+import { X } from "lucide-react";
+import { useToast } from "@client/shared/hooks/useToast";
+import { useDeleteUpload } from "@client/shared/services/api/hooks/useDeleteUpload";
 
 interface LocationDetailViewProps {
   locationDetail: LocationResponse | null | undefined;
@@ -15,6 +22,55 @@ interface LocationDetailViewProps {
  * Shows all location fields, Instagram embeds, and uploads
  */
 export function LocationDetailView({ locationDetail, isLoading, error, onCopyField }: LocationDetailViewProps) {
+  const { showToast } = useToast();
+  const [lightboxState, setLightboxState] = useState({
+    isOpen: false,
+    images: [] as string[],
+    currentIndex: 0,
+    photographerCredit: undefined as string | undefined,
+  });
+
+  const deleteMutation = useDeleteUpload({
+    locationId: locationDetail?.id || 0,
+    onSuccess: () => {
+      const centerPosition = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+      showToast("Upload deleted successfully", centerPosition);
+    },
+    onError: (error) => {
+      const centerPosition = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+      showToast(error.message || "Failed to delete upload", centerPosition);
+    },
+  });
+
+  function handleImageClick(upload: Upload, imageIndex: number) {
+    setLightboxState({
+      isOpen: true,
+      images: upload.images || [],
+      currentIndex: imageIndex,
+      photographerCredit: upload.photographerCredit || undefined,
+    });
+  }
+
+  function handleLightboxNext() {
+    setLightboxState((prev) => ({
+      ...prev,
+      currentIndex: Math.min(prev.currentIndex + 1, prev.images.length - 1),
+    }));
+  }
+
+  function handleLightboxPrevious() {
+    setLightboxState((prev) => ({
+      ...prev,
+      currentIndex: Math.max(prev.currentIndex - 1, 0),
+    }));
+  }
+
+  function handleDeleteUpload(uploadId: number) {
+    if (confirm("Are you sure you want to delete this upload?")) {
+      deleteMutation.mutate(uploadId);
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="mt-4 pt-4 border-t border-gray-200">
@@ -159,15 +215,64 @@ export function LocationDetailView({ locationDetail, isLoading, error, onCopyFie
           )}
         </div>
 
-        {/* Uploads section */}
-        {locationDetail.uploads && locationDetail.uploads.length > 0 && (
-          <DetailField
-            label="Images"
-            value={`${locationDetail.uploads.length} image${locationDetail.uploads.length !== 1 ? 's' : ''} uploaded`}
-            valueClassName="text-sm text-gray-600"
-          />
-        )}
+        {/* Uploads Section: Form + Gallery */}
+        <div className="space-y-4">
+          {/* Add Upload Files Form */}
+          <AddUploadFilesForm locationId={locationDetail.id} />
+
+          {/* Existing Uploads Gallery */}
+          {locationDetail.uploads && locationDetail.uploads.length > 0 && (
+            <div className="space-y-2">
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                Uploaded Images ({locationDetail.uploads.reduce((sum, u) => sum + (u.images?.length || 0), 0)}):
+              </span>
+              <ul className="flex gap-2 ml-4 flex-wrap">
+                {locationDetail.uploads.flatMap((upload) =>
+                  (upload.images || []).map((imagePath, idx) => {
+                    const imageUrl = `/api/images/${imagePath.replace(/^data\/images\//, '')}`;
+                    return (
+                      <li key={`${upload.id}-${idx}`} className="relative group">
+                        <div className="shrink-0 w-[120px] h-[120px] overflow-hidden rounded bg-gray-100 hover:ring-2 ring-blue-400 transition-all">
+                          <img
+                            src={imageUrl}
+                            alt={upload.photographerCredit || "Uploaded image"}
+                            className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                            loading="lazy"
+                            onClick={() => handleImageClick(upload, idx)}
+                            title={upload.photographerCredit || "Click to view"}
+                          />
+                        </div>
+                        {/* Delete button */}
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => handleDeleteUpload(upload.id!)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </li>
+                    );
+                  })
+                )}
+              </ul>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Image Lightbox */}
+      {lightboxState.isOpen && (
+        <ImageLightbox
+          images={lightboxState.images}
+          currentIndex={lightboxState.currentIndex}
+          isOpen={lightboxState.isOpen}
+          onClose={() => setLightboxState({ ...lightboxState, isOpen: false })}
+          onNext={handleLightboxNext}
+          onPrevious={handleLightboxPrevious}
+          photographerCredit={lightboxState.photographerCredit}
+        />
+      )}
     </div>
   );
 }
