@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { LocationResponse, Upload, ImageMetadata } from "@client/shared/services/api/types";
+import type { LocationResponse, Upload, ImageMetadata, InstagramEmbed } from "@client/shared/services/api/types";
 import { truncateUrl } from "../../utils";
 import { DetailField } from "./DetailField";
 import { AddInstagramEmbedForm } from "../forms/AddInstagramEmbedForm";
@@ -50,6 +50,16 @@ export function LocationDetailView({ locationDetail, isLoading, error, onCopyFie
       currentIndex: imageIndex,
       photographerCredit: upload.photographerCredit || undefined,
       imageMetadata: upload.imageMetadata,
+    });
+  }
+
+  function handleInstagramImageClick(embed: InstagramEmbed, imageIndex: number) {
+    setLightboxState({
+      isOpen: true,
+      images: embed.images || [],
+      currentIndex: imageIndex,
+      photographerCredit: embed.username ? `@${embed.username}` : undefined,
+      imageMetadata: undefined, // Instagram embeds don't have metadata
     });
   }
 
@@ -251,8 +261,8 @@ export function LocationDetailView({ locationDetail, isLoading, error, onCopyFie
                           alt="Instagram"
                           className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
                           loading="lazy"
-                          onClick={(e) => onCopyField(embed.embed_code, e)}
-                          title="Click to copy Instagram embed code"
+                          onClick={() => handleInstagramImageClick(embed, 0)}
+                          title={embed.username ? `@${embed.username}` : "Click to view"}
                         />
                       </div>
                     )}
