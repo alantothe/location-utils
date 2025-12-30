@@ -9,6 +9,7 @@ import {
   SelectValue,
 } from "@client/components/ui/select";
 import type { Category } from "@client/shared/services/api/types";
+import type { SyncStatusResponse } from "@client/shared/services/api/payload.api";
 
 type SyncStatusFilter = "all" | "synced" | "not-synced" | "failed";
 
@@ -71,7 +72,7 @@ export function PayloadSync() {
     await syncAllMutation.mutateAsync(category);
   };
 
-  const getSyncStatusBadge = (item: typeof statusData[0]) => {
+  const getSyncStatusBadge = (item: SyncStatusResponse) => {
     if (!item.syncState) {
       return <span className="px-2 py-1 text-xs rounded bg-gray-200 text-gray-700">Not Synced</span>;
     }
