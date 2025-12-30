@@ -71,7 +71,12 @@ export function LocationDetailView({ locationDetail, isLoading, error, onCopyFie
           images: variantPaths,
           currentIndex: 0, // Start with first variant (thumbnail)
           photographerCredit: upload.photographerCredit || undefined,
-          imageMetadata: undefined, // ImageSets have variant metadata instead
+          imageMetadata: imageSet.variants.map(variant => ({
+            width: variant.dimensions.width,
+            height: variant.dimensions.height,
+            size: variant.size,
+            format: variant.format,
+          })),
           instagramUrl: undefined,
           embedCode: undefined,
         });
