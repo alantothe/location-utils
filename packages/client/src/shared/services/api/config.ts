@@ -40,6 +40,13 @@ export const API_ENDPOINTS = {
   ADMIN_TAXONOMY_CORRECTIONS_PREVIEW: "/api/admin/taxonomy/corrections/preview",
   ADMIN_TAXONOMY_CORRECTION_DELETE: (id: number) => `/api/admin/taxonomy/corrections/${id}`,
 
+  // Payload CMS sync
+  PAYLOAD_SYNC: (locationId: number) => `/api/payload/sync/${locationId}`,
+  PAYLOAD_SYNC_ALL: "/api/payload/sync-all",
+  PAYLOAD_SYNC_STATUS: "/api/payload/sync-status",
+  PAYLOAD_SYNC_STATUS_BY_ID: (locationId: number) => `/api/payload/sync-status/${locationId}`,
+  PAYLOAD_TEST_CONNECTION: "/api/payload/test-connection",
+
   // Files
   OPEN_FOLDER: "/api/open-folder",
   IMAGES: "/api/images",

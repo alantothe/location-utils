@@ -1,6 +1,7 @@
 import { EnvConfig } from "@server/shared/config/env.config";
 import { ImageStorageService } from "@server/shared/services/storage/image-storage.service";
 import { InstagramApiClient } from "@server/shared/services/external/instagram-api.client";
+import { PayloadApiClient } from "@server/shared/services/external/payload-api.client";
 import { BigDataCloudClient } from "@server/shared/services/external/bigdatacloud-api.client";
 import { GeoapifyClient } from "@server/shared/services/external/geoapify-api.client";
 import { MapsService } from "../services/maps.service";
@@ -11,6 +12,7 @@ import { LocationMutationService } from "../services/location-mutation.service";
 import { TaxonomyService } from "../services/taxonomy.service";
 import { DistrictExtractionService } from "../services/district-extraction.service";
 import { TaxonomyCorrectionService } from "../services/taxonomy-correction.service";
+import { PayloadSyncService } from "../services/payload-sync.service";
 
 export class ServiceContainer {
   private static instance: ServiceContainer;
@@ -18,6 +20,7 @@ export class ServiceContainer {
   readonly config: EnvConfig;
   readonly imageStorage: ImageStorageService;
   readonly instagramApi: InstagramApiClient;
+  readonly payloadApi: PayloadApiClient;
   readonly bigDataCloudClient: BigDataCloudClient;
   readonly geoapifyClient: GeoapifyClient;
   readonly districtExtractionService: DistrictExtractionService;
@@ -28,12 +31,14 @@ export class ServiceContainer {
   readonly uploadsService: UploadsService;
   readonly locationQueryService: LocationQueryService;
   readonly locationMutationService: LocationMutationService;
+  readonly payloadSyncService: PayloadSyncService;
 
   private constructor() {
     // Singletons
     this.config = EnvConfig.getInstance();
     this.imageStorage = new ImageStorageService();
     this.instagramApi = new InstagramApiClient(this.config);
+    this.payloadApi = new PayloadApiClient(this.config);
     this.bigDataCloudClient = new BigDataCloudClient();
     this.geoapifyClient = new GeoapifyClient(this.config.GEOAPIFY_API_KEY || "");
     this.districtExtractionService = new DistrictExtractionService();
@@ -53,6 +58,11 @@ export class ServiceContainer {
     this.uploadsService = new UploadsService(this.imageStorage);
     this.locationQueryService = new LocationQueryService();
     this.locationMutationService = new LocationMutationService();
+    this.payloadSyncService = new PayloadSyncService(
+      this.payloadApi,
+      this.imageStorage,
+      this.locationQueryService
+    );
   }
 
   static getInstance(): ServiceContainer {

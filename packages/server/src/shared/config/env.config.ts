@@ -4,6 +4,9 @@ export class EnvConfig {
   readonly GOOGLE_MAPS_API_KEY: string;
   readonly RAPID_API_KEY: string;
   readonly GEOAPIFY_API_KEY: string;
+  readonly PAYLOAD_API_URL: string;
+  readonly PAYLOAD_SERVICE_EMAIL: string;
+  readonly PAYLOAD_SERVICE_PASSWORD: string;
   readonly PORT: number;
   readonly NODE_ENV: string;
 
@@ -11,6 +14,9 @@ export class EnvConfig {
     this.GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY || "";
     this.RAPID_API_KEY = process.env.RAPID_API_KEY || "";
     this.GEOAPIFY_API_KEY = process.env.GEOAPIFY_API_KEY || "";
+    this.PAYLOAD_API_URL = process.env.PAYLOAD_API_URL || "";
+    this.PAYLOAD_SERVICE_EMAIL = process.env.PAYLOAD_SERVICE_EMAIL || "";
+    this.PAYLOAD_SERVICE_PASSWORD = process.env.PAYLOAD_SERVICE_PASSWORD || "";
     this.PORT = Number(process.env.PORT || 3000);
     this.NODE_ENV = process.env.NODE_ENV || "development";
 
@@ -39,6 +45,10 @@ export class EnvConfig {
       warnings.push("GEOAPIFY_API_KEY not set - Brazil reverse geocoding may fail");
     }
 
+    if (!this.PAYLOAD_API_URL || !this.PAYLOAD_SERVICE_EMAIL || !this.PAYLOAD_SERVICE_PASSWORD) {
+      warnings.push("Payload CMS not configured - sync to Payload disabled");
+    }
+
     if (warnings.length > 0 && this.NODE_ENV !== "test") {
       console.warn("Configuration warnings:", warnings.join(", "));
     }
@@ -54,5 +64,9 @@ export class EnvConfig {
 
   hasGeoapifyKey(): boolean {
     return !!this.GEOAPIFY_API_KEY;
+  }
+
+  isPayloadConfigured(): boolean {
+    return !!(this.PAYLOAD_API_URL && this.PAYLOAD_SERVICE_EMAIL && this.PAYLOAD_SERVICE_PASSWORD);
   }
 }

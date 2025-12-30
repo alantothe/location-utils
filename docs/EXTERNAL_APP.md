@@ -1,6 +1,6 @@
-# External App Integration Guide
+# Payload Integration Guide
 
-**Complete guide for building an external admin utility to add data (accommodations, attractions, dining, nightlife) with images to the Questura backend.**
+**Complete guide for integrating url-util with the Payload backend to manage location data (accommodations, attractions, dining, nightlife) with images.**
 
 ---
 
@@ -16,14 +16,14 @@
 
 ## Quick Start
 
-### What You're Building
+### What We're Building
 
-An admin utility app (runs on your PC) that:
-1. Fills out a form (title, location, type, images, contact info, etc.)
+url-util is an admin utility that:
+1. Provides forms for adding location data (title, location, type, images, contact info, etc.)
 2. On submit: uploads images to Payload → gets MediaAsset IDs
-3. Creates data entry (dining/accommodation/etc.) with those IDs
+3. Creates data entry (dining/accommodation/etc.) with those IDs in Payload
 
-### The 3 API Calls You Need
+### The 3 API Calls We Use
 
 ```javascript
 // 1. Login (once) → get JWT token
@@ -67,11 +67,10 @@ Response: { doc: { id: "xyz789" } }
 ### Architecture Overview
 
 ```
-External App (your admin utility)
+url-util (our application)
   │
   ├─ No user system (uses service account)
-  ├─ Runs on admin's PC
-  └─ Talks to Payload via REST API
+  └─ Communicates with Payload via REST API
       │
       └─ Payload CMS (http://localhost:4000)
           │
@@ -89,7 +88,7 @@ External App (your admin utility)
 
 ```
 ┌──────────────────────────────────────┐
-│ 1. User fills form in external app  │
+│ 1. User fills form in url-util      │
 │    - Title, type, location, etc.    │
 │    - Selects 3 images from disk     │
 └──────────────┬───────────────────────┘
@@ -138,7 +137,7 @@ External App (your admin utility)
 **Each `/api/media-assets` request is synchronous:**
 
 ```
-Your app sends image
+url-util sends image
     ↓
 Payload receives file
     ↓
@@ -150,10 +149,10 @@ Payload saves MediaAsset to database
     ↓
 Response sent: { doc: { id: "abc123" } }
     ↓
-Your app receives response
+url-util receives response
 ```
 
-**When you get the response, Bunny upload is DONE.** No separate confirmation needed.
+**When we get the response, Bunny upload is DONE.** No separate confirmation needed.
 
 ---
 
@@ -161,13 +160,13 @@ Your app receives response
 
 ### Prerequisites
 
-1. **Backend running** at `http://localhost:4000`
+1. **Payload backend running** at `http://localhost:4000`
 2. **Service account created** with `editor` or `admin` role
 3. **Know valid location identifiers** (e.g., "lima-peru")
 
 ### Step 1: Create Service Account
 
-The external app doesn't have users - it authenticates as one service account.
+url-util authenticates as a service account (not individual users).
 
 **Option A: Via Payload Admin Panel**
 
@@ -206,7 +205,7 @@ SERVICE_EMAIL=service-account@questurian.com
 SERVICE_PASSWORD=your-strong-password
 BACKEND_URL=http://localhost:4000
 
-// In your code
+// In our code
 require('dotenv').config();
 
 const BACKEND_URL = process.env.BACKEND_URL;
@@ -304,7 +303,7 @@ async function uploadImage(file, altText, location = null) {
   const data = await response.json();
   console.log('✓ Uploaded:', data.doc.filename, '→ ID:', data.doc.id);
 
-  // THIS IS THE ID YOU NEED!
+  // THIS IS THE ID WE NEED!
   return data.doc.id;
 }
 ```
@@ -485,7 +484,7 @@ async function submitDiningEntry(formData, imageFiles) {
 
     // If we failed partway through image uploads,
     // uploadedImageIds contains the successfully uploaded images
-    // You could delete them or leave them for retry
+    // We could delete them or leave them for retry
 
     throw error;
   }
@@ -1018,9 +1017,9 @@ Create nightlife entries (nightclubs, bars, lounges, etc.)
 
 ### Gallery Array Structure
 
-**IMPORTANT:** What you send vs. what you receive:
+**IMPORTANT:** What we send vs. what we receive:
 
-**In Request (what you send):**
+**In Request (what we send):**
 ```json
 {
   "gallery": [
@@ -1033,7 +1032,7 @@ Create nightlife entries (nightclubs, bars, lounges, etc.)
 }
 ```
 
-**In Response (what you receive):**
+**In Response (what we receive):**
 ```json
 {
   "gallery": [
@@ -1052,7 +1051,7 @@ Create nightlife entries (nightclubs, bars, lounges, etc.)
 }
 ```
 
-Payload automatically "populates" relationships, so you send just the ID but receive the full object.
+Payload automatically "populates" relationships, so we send just the ID but receive the full object.
 
 ---
 
@@ -1165,7 +1164,7 @@ curl -X POST http://localhost:4000/api/dining \
 
 **"The following field is invalid: gallery.0.image"**
 - MediaAsset ID doesn't exist
-- Verify you're using the correct ID from upload response: `data.doc.id`
+- Verify we're using the correct ID from upload response: `data.doc.id`
 
 **"Value must be unique" (title field)**
 - Title already exists in database
@@ -1292,7 +1291,7 @@ SERVICE_EMAIL=service-account@questurian.com
 SERVICE_PASSWORD=your-strong-password
 BACKEND_URL=http://localhost:4000
 
-// In code
+// In our code
 require('dotenv').config();
 const SERVICE_EMAIL = process.env.SERVICE_EMAIL;
 const SERVICE_PASSWORD = process.env.SERVICE_PASSWORD;
@@ -1315,7 +1314,7 @@ const SERVICE_PASSWORD = process.env.SERVICE_PASSWORD;
 
 ## Summary
 
-### What You Need to Do
+### What We Need to Do
 
 1. ✅ Create service account with `editor` or `admin` role
 2. ✅ Store credentials in `.env` file
@@ -1402,10 +1401,10 @@ await createEntry('nightlife', { /* data */ });
 
 ### Support
 
-**If you have issues:**
+**If we have issues:**
 1. Check server logs for detailed error messages
 2. Verify service account has correct role (`editor` or `admin`)
 3. Ensure all required environment variables are set in server `.env.local`
 4. Test with Payload admin panel first at `http://localhost:4000/admin`
 
-**You're ready to build!** 🚀
+**We're ready to build!** 🚀

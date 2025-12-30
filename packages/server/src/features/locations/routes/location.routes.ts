@@ -6,6 +6,7 @@ import { addUploadParamsSchema } from "../validation/schemas/uploads.schemas";
 import { listLocationsQuerySchema, deleteLocationSlugSchema, deleteLocationIdSchema } from "../validation/schemas/locations.schemas";
 import { taxonomyLocationKeyParamsSchema } from "../validation/schemas/taxonomy.schemas";
 import { createCorrectionSchema, deleteCorrectionParamsSchema } from "../validation/schemas/taxonomy-correction.schemas";
+import { syncLocationIdSchema, syncAllSchema } from "../validation/schemas/payload.schemas";
 
 // Import new controllers
 import { getLocations, getLocationsBasic, getLocationById, deleteLocationBySlug, deleteLocationById } from "../controllers/locations.controller";
@@ -32,6 +33,12 @@ import {
   createCorrection,
   deleteCorrection,
 } from "../controllers/taxonomy-correction.controller";
+import {
+  postSyncLocation,
+  postSyncAll,
+  getSyncStatus,
+  getTestConnection,
+} from "../controllers/payload.controller";
 
 // Location routes
 app.get("/api/locations", validateQuery(listLocationsQuerySchema), getLocations);
@@ -90,6 +97,21 @@ app.delete(
   validateParams(deleteCorrectionParamsSchema),
   deleteCorrection
 );
+
+// Payload sync routes
+app.post(
+  "/api/payload/sync/:id",
+  validateParams(syncLocationIdSchema),
+  postSyncLocation
+);
+app.post(
+  "/api/payload/sync-all",
+  validateBody(syncAllSchema),
+  postSyncAll
+);
+app.get("/api/payload/sync-status", getSyncStatus);
+app.get("/api/payload/sync-status/:id", getSyncStatus);
+app.get("/api/payload/test-connection", getTestConnection);
 
 // Serve uploaded images
 app.get("/api/images/*", serveImage);

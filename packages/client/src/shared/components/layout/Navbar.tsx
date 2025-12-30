@@ -26,6 +26,9 @@ export function Navbar() {
               )}
             </Link>
           </li>
+          <li>
+            <Link to="/admin/payload-sync">Payload Sync</Link>
+          </li>
         </ul>
       </div>
     </nav>

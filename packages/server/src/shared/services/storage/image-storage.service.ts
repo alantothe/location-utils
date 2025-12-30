@@ -118,6 +118,14 @@ export class ImageStorageService {
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
+      if (!file) {
+        errors.push({
+          index: i,
+          error: "File is undefined"
+        });
+        continue;
+      }
+
       try {
         const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
         const filename = `image_${i}.${ext}`;
@@ -135,5 +143,24 @@ export class ImageStorageService {
     }
 
     return { savedPaths, errors };
+  }
+
+  /**
+   * Read image file and return as Buffer
+   */
+  async readImage(filePath: string): Promise<Buffer> {
+    // Handle both relative and absolute paths
+    const absolutePath = filePath.startsWith("/")
+      ? filePath
+      : join(process.cwd(), filePath);
+
+    const file = Bun.file(absolutePath);
+
+    if (!await file.exists()) {
+      throw new Error(`Image file not found: ${filePath}`);
+    }
+
+    const arrayBuffer = await file.arrayBuffer();
+    return Buffer.from(arrayBuffer);
   }
 }
