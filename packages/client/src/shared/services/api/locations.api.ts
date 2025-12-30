@@ -18,6 +18,7 @@ import type {
   SuccessResponse,
   Category,
 } from "./types";
+import type { ImageVariantType } from "@url-util/shared";
 
 // ============================================================================
 // LOCATION MANAGEMENT
@@ -123,6 +124,62 @@ export const locationsApi = {
       xhr.addEventListener("abort", () => reject(new Error("Upload cancelled")));
 
       xhr.open("POST", `${API_BASE_URL}${API_ENDPOINTS.ADD_UPLOAD(locationId)}`);
+      xhr.send(formData);
+    });
+  },
+
+  /**
+   * Upload image set (source + 5 variants) to a location with progress tracking
+   */
+  async uploadImageSet(
+    locationId: number,
+    sourceFile: File,
+    variantFiles: { type: ImageVariantType; file: File }[],
+    photographerCredit?: string,
+    onProgress?: (percent: number) => void
+  ): Promise<UploadResponse["entry"]> {
+    const formData = new FormData();
+
+    if (photographerCredit) {
+      formData.append("photographerCredit", photographerCredit);
+    }
+
+    // Append source file (currently only supporting 1 source per upload)
+    formData.append("source_0", sourceFile);
+
+    // Append all 5 variant files with naming convention: variant_0_{type}
+    variantFiles.forEach(({ type, file }) => {
+      formData.append(`variant_0_${type}`, file);
+    });
+
+    // Use XMLHttpRequest for progress tracking
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+
+      xhr.upload.addEventListener("progress", (e) => {
+        if (e.lengthComputable && onProgress) {
+          const percent = Math.round((e.loaded / e.total) * 100);
+          onProgress(percent);
+        }
+      });
+
+      xhr.addEventListener("load", () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const response = JSON.parse(xhr.responseText) as UploadResponse;
+            resolve(unwrapEntry(response));
+          } catch (error) {
+            reject(new Error("Failed to parse response"));
+          }
+        } else {
+          reject(new Error(`Upload failed: ${xhr.statusText}`));
+        }
+      });
+
+      xhr.addEventListener("error", () => reject(new Error("Upload failed")));
+      xhr.addEventListener("abort", () => reject(new Error("Upload cancelled")));
+
+      xhr.open("POST", `${API_BASE_URL}${API_ENDPOINTS.ADD_UPLOAD_IMAGESET(locationId)}`);
       xhr.send(formData);
     });
   },

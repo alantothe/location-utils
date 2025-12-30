@@ -2,6 +2,10 @@
  * Image processing utilities for cropping and resizing images
  */
 
+import type { ImageVariantType, VARIANT_SPECS } from "@url-util/shared";
+import { VARIANT_SPECS as VARIANT_SPECS_IMPORT } from "@url-util/shared";
+import type { Area } from "react-easy-crop";
+
 export interface CropData {
   x: number;
   y: number;
@@ -12,6 +16,14 @@ export interface CropData {
 export interface TargetDimensions {
   width: number;
   height: number;
+}
+
+export interface CropState {
+  variantType: ImageVariantType;
+  crop: { x: number; y: number };
+  zoom: number;
+  croppedAreaPixels: Area | null;
+  completed: boolean;
 }
 
 /**
@@ -146,4 +158,55 @@ export async function validateImageResolution(
       error: error instanceof Error ? error.message : "Failed to validate image",
     };
   }
+}
+
+/**
+ * Generate filename for a specific variant
+ */
+function generateVariantFileName(originalName: string, variantType: ImageVariantType): string {
+  const ext = originalName.split('.').pop() || 'jpg';
+  const baseName = originalName.replace(/\.[^/.]+$/, '');
+  return `${baseName}_${variantType}.${ext}`;
+}
+
+/**
+ * Create all 5 variant images from crop states
+ * @param imageSrc - Source image URL (object URL)
+ * @param cropStates - Crop states for all 5 variants
+ * @param fileName - Original file name
+ * @returns Array of variant files with their types
+ */
+export async function createMultiVariantImages(
+  imageSrc: string,
+  cropStates: Record<ImageVariantType, CropState>,
+  fileName: string
+): Promise<{ type: ImageVariantType; file: File }[]> {
+  // Process all 5 variants in parallel for performance
+  const variantPromises = Object.entries(cropStates).map(async ([type, state]) => {
+    const variantType = type as ImageVariantType;
+    const spec = VARIANT_SPECS_IMPORT[variantType];
+
+    if (!state.croppedAreaPixels) {
+      throw new Error(`Missing crop data for variant: ${variantType}`);
+    }
+
+    const croppedFile = await createCroppedImage(
+      imageSrc,
+      {
+        x: state.croppedAreaPixels.x,
+        y: state.croppedAreaPixels.y,
+        width: state.croppedAreaPixels.width,
+        height: state.croppedAreaPixels.height,
+      },
+      { width: spec.width, height: spec.height },
+      generateVariantFileName(fileName, variantType)
+    );
+
+    return { type: variantType, file: croppedFile };
+  });
+
+  // Wait for all variants to be processed
+  const variants = await Promise.all(variantPromises);
+
+  return variants;
 }

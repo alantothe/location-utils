@@ -2,6 +2,8 @@
  * API types matching server responses
  */
 
+import type { ImageSet } from "@url-util/shared";
+
 export type Category = "dining" | "accommodations" | "attractions" | "nightlife";
 
 export interface ContactInfo {
@@ -41,14 +43,29 @@ export interface ImageMetadata {
   format: string; // 'jpeg', 'png', 'webp', 'gif'
 }
 
-export interface Upload {
+// Legacy Upload format (backward compatibility)
+export interface LegacyUpload {
   id?: number;
   location_id: number;
   photographerCredit?: string | null;
   images?: string[];
   imageMetadata?: ImageMetadata[]; // Metadata for each image (parallel array)
   created_at?: string;
+  format: 'legacy';
 }
+
+// ImageSet Upload format (multi-variant system)
+export interface ImageSetUpload {
+  id?: number;
+  location_id: number;
+  photographerCredit?: string | null;
+  imageSets?: ImageSet[];
+  created_at?: string;
+  format: 'imageset';
+}
+
+// Discriminated union
+export type Upload = LegacyUpload | ImageSetUpload;
 
 export interface Location {
   id: number;

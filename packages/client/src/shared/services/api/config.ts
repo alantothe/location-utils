@@ -22,6 +22,7 @@ export const API_ENDPOINTS = {
   DELETE_LOCATION: (id: number) => `/api/locations/${id}`,
   ADD_INSTAGRAM: (locationId: number) => `/api/add-instagram/${locationId}`,
   ADD_UPLOAD: (locationId: number) => `/api/add-upload/${locationId}`,
+  ADD_UPLOAD_IMAGESET: (locationId: number) => `/api/add-upload-imageset/${locationId}`,
   DELETE_UPLOAD: (uploadId: number) => `/api/uploads/${uploadId}`,
   CLEAR_DB: "/api/clear-db",
 

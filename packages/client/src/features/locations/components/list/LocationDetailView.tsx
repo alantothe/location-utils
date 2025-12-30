@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { LocationResponse, Upload, ImageMetadata, InstagramEmbed } from "@client/shared/services/api/types";
+import type { ImageVariant } from "@url-util/shared";
 import { truncateUrl } from "../../utils";
 import { DetailField } from "./DetailField";
 import { AddInstagramEmbedForm } from "../forms/AddInstagramEmbedForm";
@@ -46,15 +47,36 @@ export function LocationDetailView({ locationDetail, isLoading, error, onCopyFie
   });
 
   function handleImageClick(upload: Upload, imageIndex: number) {
-    setLightboxState({
-      isOpen: true,
-      images: upload.images || [],
-      currentIndex: imageIndex,
-      photographerCredit: upload.photographerCredit || undefined,
-      imageMetadata: upload.imageMetadata,
-      instagramUrl: undefined,
-      embedCode: undefined,
-    });
+    if ('images' in upload) {
+      setLightboxState({
+        isOpen: true,
+        images: upload.images || [],
+        currentIndex: imageIndex,
+        photographerCredit: upload.photographerCredit || undefined,
+        imageMetadata: upload.imageMetadata,
+        instagramUrl: undefined,
+        embedCode: undefined,
+      });
+    }
+  }
+
+  function handleImageSetClick(upload: Upload, imageSetIndex: number) {
+    if ('imageSets' in upload && upload.imageSets) {
+      const imageSet = upload.imageSets[imageSetIndex];
+      if (imageSet && imageSet.variants) {
+        // Extract all variant paths for the lightbox
+        const variantPaths = imageSet.variants.map((v: ImageVariant) => v.path);
+        setLightboxState({
+          isOpen: true,
+          images: variantPaths,
+          currentIndex: 0, // Start with first variant (thumbnail)
+          photographerCredit: upload.photographerCredit || undefined,
+          imageMetadata: undefined, // ImageSets have variant metadata instead
+          instagramUrl: undefined,
+          embedCode: undefined,
+        });
+      }
+    }
   }
 
   function handleInstagramImageClick(embed: InstagramEmbed, imageIndex: number) {
@@ -208,37 +230,80 @@ export function LocationDetailView({ locationDetail, isLoading, error, onCopyFie
         {locationDetail.uploads && locationDetail.uploads.length > 0 && (
           <div className="space-y-2">
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-              Uploaded Images ({locationDetail.uploads.reduce((sum, u) => sum + (u.images?.length || 0), 0)}):
+              Uploaded Images:
             </span>
             <ul className="flex gap-2 ml-4 flex-wrap">
-              {locationDetail.uploads.flatMap((upload) =>
-                (upload.images || []).map((imagePath, idx) => {
-                  const imageUrl = `/api/images/${imagePath.replace(/^data\/images\//, '')}`;
-                  return (
-                    <li key={`${upload.id}-${idx}`} className="relative group">
-                      <div className="shrink-0 w-[120px] h-[120px] overflow-hidden rounded bg-gray-100 hover:ring-2 ring-blue-400 transition-all">
-                        <img
-                          src={imageUrl}
-                          alt={upload.photographerCredit || "Uploaded image"}
-                          className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
-                          loading="lazy"
-                          onClick={() => handleImageClick(upload, idx)}
-                          title={upload.photographerCredit || "Click to view"}
-                        />
-                      </div>
-                      {/* Delete button */}
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => handleDeleteUpload(upload.id!)}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </li>
-                  );
-                })
-              )}
+              {locationDetail.uploads.flatMap((upload) => {
+                // Handle ImageSet format (new multi-variant system)
+                if (upload.format === 'imageset' && upload.imageSets) {
+                  return upload.imageSets.map((imageSet, setIdx) => {
+                    // Find square variant (1:1 aspect ratio) for display
+                    const squareVariant = imageSet.variants?.find(v => v.type === 'square');
+                    if (!squareVariant) return null;
+
+                    const imageUrl = `/api/images/${squareVariant.path.replace(/^data\/images\//, '')}`;
+                    return (
+                      <li key={`${upload.id}-set-${setIdx}`} className="relative group">
+                        <div className="shrink-0 w-[120px] h-[120px] overflow-hidden rounded bg-gray-100 hover:ring-2 ring-blue-400 transition-all">
+                          <img
+                            src={imageUrl}
+                            alt={upload.photographerCredit || "Uploaded image"}
+                            className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                            loading="lazy"
+                            onClick={() => handleImageSetClick(upload, setIdx)}
+                            title={upload.photographerCredit || "Click to view all variants"}
+                          />
+                        </div>
+                        {/* Badge showing variant count */}
+                        <div className="absolute bottom-1 right-1 bg-black/70 text-white text-[10px] px-1.5 py-0.5 rounded pointer-events-none">
+                          5 variants
+                        </div>
+                        {/* Delete button */}
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => handleDeleteUpload(upload.id!)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </li>
+                    );
+                  }).filter(Boolean);
+                }
+
+                // Handle legacy format (old single-image system)
+                if (upload.format === 'legacy') {
+                  return (upload.images || []).map((imagePath: string, idx: number) => {
+                    const imageUrl = `/api/images/${imagePath.replace(/^data\/images\//, '')}`;
+                    return (
+                      <li key={`${upload.id}-${idx}`} className="relative group">
+                        <div className="shrink-0 w-[120px] h-[120px] overflow-hidden rounded bg-gray-100 hover:ring-2 ring-blue-400 transition-all">
+                          <img
+                            src={imageUrl}
+                            alt={upload.photographerCredit || "Uploaded image"}
+                            className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                            loading="lazy"
+                            onClick={() => handleImageClick(upload, idx)}
+                            title={upload.photographerCredit || "Click to view"}
+                          />
+                        </div>
+                        {/* Delete button */}
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => handleDeleteUpload(upload.id!)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </li>
+                    );
+                  });
+                }
+
+                return [];
+              })}
             </ul>
           </div>
         )}

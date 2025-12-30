@@ -400,5 +400,18 @@ export function createFromUpload(
     location_id: locationId,
     photographerCredit: photographerCredit || null,
     images: [],
+    format: 'legacy',
+  };
+}
+
+export function createFromImageSetUpload(
+  locationId: number,
+  photographerCredit?: string | null
+): import('../models/location').ImageSetUpload {
+  return {
+    location_id: locationId,
+    photographerCredit: photographerCredit || null,
+    imageSets: [],
+    format: 'imageset',
   };
 }

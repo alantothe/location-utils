@@ -79,17 +79,37 @@ export interface ImageMetadata {
 }
 
 /**
- * Upload
- * Represents directly uploaded images for a location
+ * Legacy Upload (backward compatibility)
+ * Represents the old single-image upload format with parallel arrays
  */
-export interface Upload {
+export interface LegacyUpload {
   id?: number;
   location_id: number;  // FK to locations table
   photographerCredit?: string | null;  // Optional photographer attribution
   images?: string[];
   imageMetadata?: ImageMetadata[];  // Metadata for each image (parallel array)
   created_at?: string;
+  format: 'legacy';  // Discriminator for union type
 }
+
+/**
+ * ImageSet Upload (multi-variant system)
+ * Represents the new multi-variant upload format with ImageSet structure
+ */
+export interface ImageSetUpload {
+  id?: number;
+  location_id: number;  // FK to locations table
+  photographerCredit?: string | null;  // Optional photographer attribution
+  imageSets?: import('@url-util/shared').ImageSet[];  // Array of ImageSet objects
+  created_at?: string;
+  format: 'imageset';  // Discriminator for union type
+}
+
+/**
+ * Upload (discriminated union)
+ * Union type supporting both legacy and imageset formats for backward compatibility
+ */
+export type Upload = LegacyUpload | ImageSetUpload;
 
 /**
  * Location with nested children (API response type)

@@ -12,7 +12,7 @@ import { syncLocationIdSchema, syncAllSchema } from "../validation/schemas/paylo
 import { getLocations, getLocationsBasic, getLocationById, deleteLocationBySlug, deleteLocationById } from "../controllers/locations.controller";
 import { postAddMaps, patchMapsById } from "../controllers/maps.controller";
 import { postAddInstagram } from "../controllers/instagram.controller";
-import { postAddUpload, deleteUpload } from "../controllers/uploads.controller";
+import { postAddUpload, postAddUploadImageSet, deleteUpload } from "../controllers/uploads.controller";
 import { serveImage } from "../controllers/files.controller";
 import {
   getLocationHierarchy,
@@ -57,6 +57,11 @@ app.post(
   "/api/add-upload/:id",
   validateParams(addUploadParamsSchema),
   postAddUpload
+);
+app.post(
+  "/api/add-upload-imageset/:id",
+  validateParams(addUploadParamsSchema),
+  postAddUploadImageSet
 );
 app.delete(
   "/api/uploads/:id",

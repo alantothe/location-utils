@@ -4,23 +4,29 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { FormInput } from "@client/shared/components/forms";
 import { Button } from "@client/components/ui/button";
 import { useToast } from "@client/shared/hooks/useToast";
-import { useAddUploadFiles } from "@client/shared/services/api/hooks/useAddUploadFiles";
+import { useAddUploadImageSet } from "@client/shared/services/api/hooks/useAddUploadImageSet";
 import { ImagePreviewGrid } from "../ui/ImagePreviewGrid";
-import { ImageCropperModal } from "../modals/ImageCropperModal";
+import { MultiVariantCropperModal } from "../modals/MultiVariantCropperModal";
 import { Upload } from "lucide-react";
 import {
   addUploadFilesSchema,
   type AddUploadFilesFormData,
 } from "../../validation/add-upload-files.schema";
+import type { ImageVariantType } from "@url-util/shared";
 
 interface AddUploadFilesFormProps {
   locationId: number;
 }
 
+interface ProcessedImageSet {
+  sourceFile: File;
+  variantFiles: { type: ImageVariantType; file: File }[];
+}
+
 export function AddUploadFilesForm({ locationId }: AddUploadFilesFormProps) {
   const { showToast } = useToast();
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [croppedFiles, setCroppedFiles] = useState<(File | null)[]>([]);
+  const [processedImageSets, setProcessedImageSets] = useState<(ProcessedImageSet | null)[]>([]);
   const [cropModalState, setCropModalState] = useState<{
     isOpen: boolean;
     fileIndex: number | null;
@@ -35,15 +41,15 @@ export function AddUploadFilesForm({ locationId }: AddUploadFilesFormProps) {
     },
   });
 
-  const { mutate, isPending, uploadProgress } = useAddUploadFiles(locationId, {
+  const { mutate, isPending, uploadProgress } = useAddUploadImageSet(locationId, {
     onSuccess: () => {
       const centerPosition = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-      showToast(`${selectedFiles.length} image(s) uploaded successfully`, centerPosition);
+      showToast(`Image set uploaded successfully (5 variants)`, centerPosition);
       handleReset();
     },
     onError: (error) => {
       const centerPosition = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-      showToast(error.message || "Failed to upload images", centerPosition);
+      showToast(error.message || "Failed to upload image set", centerPosition);
     },
   });
 
@@ -53,15 +59,15 @@ export function AddUploadFilesForm({ locationId }: AddUploadFilesFormProps) {
     const startIndex = selectedFiles.length;
 
     setSelectedFiles((prev) => [...prev, ...fileArray]);
-    setCroppedFiles((prev) => [...prev, ...new Array(fileArray.length).fill(null)]);
+    setProcessedImageSets((prev) => [...prev, ...new Array(fileArray.length).fill(null)]);
 
-    // Auto-open first new file for cropping
+    // Auto-open first new file for cropping (multi-variant)
     setCropModalState({ isOpen: true, fileIndex: startIndex });
   }
 
   function handleRemoveFile(index: number) {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
-    setCroppedFiles((prev) => prev.filter((_, i) => i !== index));
+    setProcessedImageSets((prev) => prev.filter((_, i) => i !== index));
 
     // If modal was open for this file, close it
     if (cropModalState.fileIndex === index) {
@@ -71,7 +77,7 @@ export function AddUploadFilesForm({ locationId }: AddUploadFilesFormProps) {
 
   function handleReset() {
     setSelectedFiles([]);
-    setCroppedFiles([]);
+    setProcessedImageSets([]);
     setCropModalState({ isOpen: false, fileIndex: null });
     form.reset();
     if (fileInputRef.current) {
@@ -82,10 +88,14 @@ export function AddUploadFilesForm({ locationId }: AddUploadFilesFormProps) {
   function handleSubmit(data: AddUploadFilesFormData) {
     if (!areAllFilesCropped()) return;
 
-    const filesToUpload = croppedFiles.filter((f): f is File => f !== null);
+    // Currently only supporting 1 image set per upload
+    // Can be extended to support multiple in the future
+    const imageSet = processedImageSets[0];
+    if (!imageSet) return;
 
     mutate({
-      files: filesToUpload,
+      sourceFile: imageSet.sourceFile,
+      variantFiles: imageSet.variantFiles,
       photographerCredit: data.photographerCredit || undefined,
     });
   }
@@ -95,12 +105,15 @@ export function AddUploadFilesForm({ locationId }: AddUploadFilesFormProps) {
     setCropModalState({ isOpen: true, fileIndex: index });
   }
 
-  function handleCropConfirm(croppedFile: File) {
+  function handleCropConfirm(
+    sourceFile: File,
+    variantFiles: { type: ImageVariantType; file: File }[]
+  ) {
     if (cropModalState.fileIndex === null) return;
 
-    setCroppedFiles((prev) => {
+    setProcessedImageSets((prev) => {
       const updated = [...prev];
-      updated[cropModalState.fileIndex!] = croppedFile;
+      updated[cropModalState.fileIndex!] = { sourceFile, variantFiles };
       return updated;
     });
 
@@ -115,7 +128,7 @@ export function AddUploadFilesForm({ locationId }: AddUploadFilesFormProps) {
 
   function findNextUncroppedIndex(startIndex: number): number | null {
     for (let i = startIndex; i < selectedFiles.length; i++) {
-      if (!croppedFiles[i]) return i;
+      if (!processedImageSets[i]) return i;
     }
     return null;
   }
@@ -123,7 +136,7 @@ export function AddUploadFilesForm({ locationId }: AddUploadFilesFormProps) {
   function areAllFilesCropped(): boolean {
     return (
       selectedFiles.length > 0 &&
-      selectedFiles.every((_, i) => croppedFiles[i] !== null)
+      selectedFiles.every((_, i) => processedImageSets[i] !== null)
     );
   }
 
@@ -188,10 +201,10 @@ export function AddUploadFilesForm({ locationId }: AddUploadFilesFormProps) {
         {/* Image preview grid */}
         {selectedFiles.length > 0 && (
           <ImagePreviewGrid
-            files={selectedFiles.map((file, i) => croppedFiles[i] || file)}
+            files={selectedFiles}
             onRemove={handleRemoveFile}
             onCrop={handleCropImage}
-            croppedIndicators={croppedFiles.map((f) => f !== null)}
+            croppedIndicators={processedImageSets.map((set) => set !== null)}
           />
         )}
 
@@ -229,8 +242,8 @@ export function AddUploadFilesForm({ locationId }: AddUploadFilesFormProps) {
             {isPending
               ? `Uploading... ${uploadProgress}%`
               : areAllFilesCropped()
-                ? "Upload Images"
-                : `Crop ${selectedFiles.length - croppedFiles.filter(Boolean).length} more image(s)`}
+                ? "Upload Image Set (5 variants)"
+                : `Crop ${selectedFiles.length - processedImageSets.filter(Boolean).length} more image(s)`}
           </Button>
           <Button
             type="button"
@@ -244,9 +257,9 @@ export function AddUploadFilesForm({ locationId }: AddUploadFilesFormProps) {
         </div>
       </form>
 
-      {/* Crop modal */}
+      {/* Multi-variant crop modal */}
       {cropModalState.isOpen && cropModalState.fileIndex !== null && (
-        <ImageCropperModal
+        <MultiVariantCropperModal
           file={selectedFiles[cropModalState.fileIndex]}
           isOpen={cropModalState.isOpen}
           onClose={() => setCropModalState({ isOpen: false, fileIndex: null })}
