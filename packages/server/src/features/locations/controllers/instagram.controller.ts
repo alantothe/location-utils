@@ -1,7 +1,7 @@
 import type { Context } from "hono";
 import { ServiceContainer } from "../container/service-container";
 import { successResponse } from "@shared/types/api-response";
-import type { AddInstagramDto, AddInstagramParamsDto } from "../validation/schemas/instagram.schemas";
+import type { AddInstagramDto, AddInstagramParamsDto, DeleteInstagramEmbedParams } from "../validation/schemas/instagram.schemas";
 import type { AddInstagramRequest } from "../models/location";
 
 const container = ServiceContainer.getInstance();
@@ -22,4 +22,12 @@ export async function postAddInstagram(c: Context) {
 
   const entry = await container.instagramService.addInstagramEmbed(payload);
   return c.json(successResponse({ entry }));
+}
+
+export async function deleteInstagramEmbed(c: Context) {
+  const { id } = c.get("validatedParams") as DeleteInstagramEmbedParams;
+
+  await container.instagramService.deleteInstagramEmbed(id);
+
+  return c.json(successResponse({ message: "Instagram embed deleted successfully" }));
 }

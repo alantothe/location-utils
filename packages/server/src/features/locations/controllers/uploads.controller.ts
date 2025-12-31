@@ -66,17 +66,8 @@ export async function deleteUpload(c: Context) {
     throw new BadRequestError("Invalid upload ID");
   }
 
-  const { getUploadById, deleteUploadById } = await import("../repositories/upload.repository");
-
-  const upload = getUploadById(uploadId);
-  if (!upload) {
-    throw new NotFoundError(`Upload ${uploadId} not found`);
-  }
-
-  const success = deleteUploadById(uploadId);
-  if (!success) {
-    throw new Error("Failed to delete upload");
-  }
+  // Call service to delete upload (includes file cleanup)
+  await container.uploadsService.deleteUpload(uploadId);
 
   return c.json(successResponse({ message: "Upload deleted successfully" }));
 }

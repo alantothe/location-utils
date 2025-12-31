@@ -24,10 +24,10 @@ export function getLocationsBasic(c: Context) {
   return c.json({ locations });
 }
 
-export function deleteLocationBySlug(c: Context) {
+export async function deleteLocationBySlug(c: Context) {
   const dto = c.get("validatedParams") as DeleteLocationSlugDto;
 
-  const deleted = container.locationMutationService.deleteLocationBySlug(dto.slug);
+  const deleted = await container.locationMutationService.deleteLocationBySlug(dto.slug);
 
   if (!deleted) {
     return c.json(errorResponse("Location not found"), 404);
@@ -36,10 +36,10 @@ export function deleteLocationBySlug(c: Context) {
   return c.json(successResponse({ message: "Location deleted successfully" }));
 }
 
-export function deleteLocationById(c: Context) {
+export async function deleteLocationById(c: Context) {
   const dto = c.get("validatedParams") as DeleteLocationIdDto;
 
-  const deleted = container.locationMutationService.deleteLocationById(dto.id);
+  const deleted = await container.locationMutationService.deleteLocationById(dto.id);
 
   if (!deleted) {
     return c.json(errorResponse("Location not found"), 404);

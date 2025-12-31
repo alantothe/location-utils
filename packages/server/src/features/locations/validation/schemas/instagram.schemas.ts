@@ -11,3 +11,12 @@ export const addInstagramSchema = z.object({
 });
 
 export type AddInstagramDto = z.infer<typeof addInstagramSchema>;
+
+export const deleteInstagramEmbedParamsSchema = z.object({
+  id: z.string().transform((val) => parseInt(val, 10))
+    .refine((val) => !isNaN(val) && val > 0, {
+      message: "ID must be a positive integer",
+    }),
+});
+
+export type DeleteInstagramEmbedParams = z.infer<typeof deleteInstagramEmbedParamsSchema>;

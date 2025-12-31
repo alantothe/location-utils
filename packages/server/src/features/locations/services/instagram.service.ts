@@ -6,7 +6,8 @@ import { createFromInstagram, extractInstagramData } from "./location.helper";
 import { getLocationById } from "../repositories/location.repository";
 import {
   saveInstagramEmbed,
-  getInstagramEmbedById
+  getInstagramEmbedById,
+  deleteInstagramEmbedById
 } from "../repositories/instagram-embed.repository";
 
 export class InstagramService {
@@ -90,5 +91,44 @@ export class InstagramService {
     }
 
     return entry;
+  }
+
+  async deleteInstagramEmbed(id: number): Promise<void> {
+    // 1. Get embed to extract file paths
+    const embed = getInstagramEmbedById(id);
+    if (!embed) {
+      throw new NotFoundError("Instagram embed", id);
+    }
+
+    // 2. Delete from database
+    const deleted = deleteInstagramEmbedById(id);
+    if (!deleted) {
+      throw new Error("Failed to delete Instagram embed");
+    }
+
+    // 3. Extract path metadata from first image (if images exist)
+    if (!embed.images || embed.images.length === 0) {
+      return; // No files to clean up
+    }
+
+    const firstImage = embed.images[0];
+    if (!firstImage) {
+      console.warn("First image path is undefined");
+      return;
+    }
+
+    const metadata = this.imageStorage.extractPathMetadata(firstImage);
+    if (!metadata) {
+      console.warn("Could not extract path metadata", { path: firstImage });
+      return;
+    }
+
+    // 4. Delete timestamp folder and cleanup empty parents
+    try {
+      await this.imageStorage.deleteTimestampFolder(metadata.timestampDir);
+      await this.imageStorage["cleanupEmptyFolders"](metadata.timestampDir);
+    } catch (error) {
+      console.error("File deletion failed for Instagram embed", { id, error });
+    }
   }
 }

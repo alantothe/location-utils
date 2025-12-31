@@ -185,6 +185,13 @@ export const locationsApi = {
   },
 
   /**
+   * Delete an Instagram embed by ID
+   */
+  async deleteInstagramEmbed(embedId: number): Promise<void> {
+    await apiDelete(API_ENDPOINTS.DELETE_INSTAGRAM_EMBED(embedId));
+  },
+
+  /**
    * Delete an upload by ID
    */
   async deleteUpload(uploadId: number): Promise<void> {

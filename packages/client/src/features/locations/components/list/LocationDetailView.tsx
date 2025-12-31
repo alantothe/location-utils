@@ -10,6 +10,7 @@ import { Button } from "@client/components/ui/button";
 import { X } from "lucide-react";
 import { useToast } from "@client/shared/hooks/useToast";
 import { useDeleteUpload } from "@client/shared/services/api/hooks/useDeleteUpload";
+import { useDeleteInstagramEmbed } from "@client/shared/services/api/hooks/useDeleteInstagramEmbed";
 
 interface LocationDetailViewProps {
   locationDetail: LocationResponse | null | undefined;
@@ -43,6 +44,18 @@ export function LocationDetailView({ locationDetail, isLoading, error, onCopyFie
     onError: (error) => {
       const centerPosition = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
       showToast(error.message || "Failed to delete upload", centerPosition);
+    },
+  });
+
+  const deleteInstagramMutation = useDeleteInstagramEmbed({
+    locationId: locationDetail?.id || 0,
+    onSuccess: () => {
+      const centerPosition = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+      showToast("Instagram embed deleted successfully", centerPosition);
+    },
+    onError: (error) => {
+      const centerPosition = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+      showToast(error.message || "Failed to delete Instagram embed", centerPosition);
     },
   });
 
@@ -113,6 +126,12 @@ export function LocationDetailView({ locationDetail, isLoading, error, onCopyFie
   function handleDeleteUpload(uploadId: number) {
     if (confirm("Are you sure you want to delete this upload?")) {
       deleteMutation.mutate(uploadId);
+    }
+  }
+
+  function handleDeleteInstagramEmbed(embedId: number) {
+    if (confirm("Are you sure you want to delete this Instagram embed?")) {
+      deleteInstagramMutation.mutate(embedId);
     }
   }
 
@@ -328,7 +347,7 @@ export function LocationDetailView({ locationDetail, isLoading, error, onCopyFie
                   : null;
 
                 return (
-                  <li key={embed.id}>
+                  <li key={embed.id} className="relative group">
                     {/* Thumbnail icon */}
                     {imageUrl && (
                       <div className="shrink-0 w-[120px] h-[120px] overflow-hidden rounded bg-gray-100 hover:ring-2 ring-blue-400 transition-all">
@@ -342,6 +361,15 @@ export function LocationDetailView({ locationDetail, isLoading, error, onCopyFie
                         />
                       </div>
                     )}
+                    {/* Delete button */}
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => handleDeleteInstagramEmbed(embed.id!)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
                   </li>
                 );
               })}

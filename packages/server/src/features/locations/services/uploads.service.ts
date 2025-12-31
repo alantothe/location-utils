@@ -3,7 +3,7 @@ import type { ImageVariantType, ImageSet, ImageVariant, VARIANT_SPECS } from "@u
 import { BadRequestError, NotFoundError } from "@shared/errors/http-error";
 import { ImageStorageService } from "@server/shared/services/storage/image-storage.service";
 import { getLocationById } from "../repositories/location.repository";
-import { saveUpload } from "../repositories/upload.repository";
+import { saveUpload, getUploadById, deleteUploadById } from "../repositories/upload.repository";
 import { createFromUpload, createFromImageSetUpload } from "./location.helper";
 import { extractImageMetadata } from "../utils/image-metadata-extractor";
 import { join } from "node:path";
@@ -269,6 +269,47 @@ export class UploadsService {
       console.error(`Failed to extract metadata for ${filePath}:`, error);
       // Throw error instead of returning zeros to prevent bad data from being saved
       throw new BadRequestError(`Failed to extract image metadata: ${error.message}`);
+    }
+  }
+
+  async deleteUpload(id: number): Promise<void> {
+    // 1. Get upload to extract file paths
+    const upload = getUploadById(id);
+    if (!upload) {
+      throw new NotFoundError("Upload", id);
+    }
+
+    // 2. Delete from database
+    const deleted = deleteUploadById(id);
+    if (!deleted) {
+      throw new Error("Failed to delete upload");
+    }
+
+    // 3. Extract path from legacy or imageset format (using discriminated union)
+    let imagePath: string | null | undefined = null;
+
+    if (upload.format === "imageset" && upload.imageSets && upload.imageSets.length > 0) {
+      imagePath = upload.imageSets[0]?.sourceImage?.path;
+    } else if (upload.format === "legacy" && upload.images && upload.images.length > 0) {
+      imagePath = upload.images[0];
+    }
+
+    if (!imagePath) {
+      return; // No files to clean up
+    }
+
+    const metadata = this.imageStorage.extractPathMetadata(imagePath);
+    if (!metadata) {
+      console.warn("Could not extract path metadata", { path: imagePath });
+      return;
+    }
+
+    // 4. Delete timestamp folder and cleanup empty parents
+    try {
+      await this.imageStorage.deleteTimestampFolder(metadata.timestampDir);
+      await this.imageStorage["cleanupEmptyFolders"](metadata.timestampDir);
+    } catch (error) {
+      console.error("File deletion failed for upload", { id, error });
     }
   }
 }

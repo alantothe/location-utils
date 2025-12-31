@@ -19,6 +19,7 @@ export class ServiceContainer {
 
   readonly config: EnvConfig;
   readonly imageStorage: ImageStorageService;
+  readonly imageStorageService: ImageStorageService; // Alias for consistency with admin controllers
   readonly instagramApi: InstagramApiClient;
   readonly payloadApi: PayloadApiClient;
   readonly bigDataCloudClient: BigDataCloudClient;
@@ -37,6 +38,7 @@ export class ServiceContainer {
     // Singletons
     this.config = EnvConfig.getInstance();
     this.imageStorage = new ImageStorageService();
+    this.imageStorageService = this.imageStorage; // Alias for consistency
     this.instagramApi = new InstagramApiClient(this.config);
     this.payloadApi = new PayloadApiClient(this.config);
     this.bigDataCloudClient = new BigDataCloudClient();
@@ -57,7 +59,7 @@ export class ServiceContainer {
     );
     this.uploadsService = new UploadsService(this.imageStorage);
     this.locationQueryService = new LocationQueryService();
-    this.locationMutationService = new LocationMutationService();
+    this.locationMutationService = new LocationMutationService(this.imageStorage);
     this.payloadSyncService = new PayloadSyncService(
       this.payloadApi,
       this.imageStorage,

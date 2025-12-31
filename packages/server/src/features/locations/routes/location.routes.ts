@@ -1,7 +1,7 @@
 import { app } from "@server/shared/http/server";
 import { validateBody, validateParams, validateQuery } from "@server/shared/core/middleware/validation.middleware";
 import { createMapsSchema, patchMapsSchema } from "../validation/schemas/maps.schemas";
-import { addInstagramSchema, addInstagramParamsSchema } from "../validation/schemas/instagram.schemas";
+import { addInstagramSchema, addInstagramParamsSchema, deleteInstagramEmbedParamsSchema } from "../validation/schemas/instagram.schemas";
 import { addUploadParamsSchema, deleteUploadParamsSchema } from "../validation/schemas/uploads.schemas";
 import { listLocationsQuerySchema, deleteLocationSlugSchema, deleteLocationIdSchema } from "../validation/schemas/locations.schemas";
 import { taxonomyLocationKeyParamsSchema } from "../validation/schemas/taxonomy.schemas";
@@ -11,7 +11,7 @@ import { syncLocationIdSchema, syncAllSchema } from "../validation/schemas/paylo
 // Import new controllers
 import { getLocations, getLocationsBasic, getLocationById, deleteLocationBySlug, deleteLocationById } from "../controllers/locations.controller";
 import { postAddMaps, patchMapsById } from "../controllers/maps.controller";
-import { postAddInstagram } from "../controllers/instagram.controller";
+import { postAddInstagram, deleteInstagramEmbed } from "../controllers/instagram.controller";
 import { postAddUpload, postAddUploadImageSet, deleteUpload } from "../controllers/uploads.controller";
 import { serveImage } from "../controllers/files.controller";
 import {
@@ -21,7 +21,7 @@ import {
   getCitiesByCountry,
   getNeighborhoodsByCity,
 } from "../controllers/hierarchy.controller";
-import { clearDatabase } from "../controllers/admin.controller";
+import { clearDatabase, scanOrphanedFiles, cleanupOrphanedFiles } from "../controllers/admin.controller";
 import {
   getPendingTaxonomy,
   approveTaxonomy,
@@ -68,7 +68,16 @@ app.delete(
   validateParams(deleteUploadParamsSchema),
   deleteUpload
 );
+app.delete(
+  "/api/instagram-embeds/:id",
+  validateParams(deleteInstagramEmbedParamsSchema),
+  deleteInstagramEmbed
+);
 app.get("/api/clear-db", clearDatabase);
+
+// Admin orphan cleanup routes
+app.get("/api/admin/orphaned-files", scanOrphanedFiles);
+app.post("/api/admin/orphaned-files/cleanup", cleanupOrphanedFiles);
 
 // Location hierarchy API routes
 app.get("/api/location-hierarchy", getLocationHierarchy);
