@@ -5,7 +5,7 @@
  * tourism zones from the informative array over administrative districts.
  */
 
-import { DistrictExtractionService } from '../services/district-extraction.service';
+import { DistrictExtractionService } from '../services/geocoding/district-extraction.service';
 import type { AdministrativeLevel, InformativeLevel } from '@server/shared/services/external/bigdatacloud-api.client';
 
 console.log('\n🇧🇷 Brazil Tourism Zone Extraction Demo\n');

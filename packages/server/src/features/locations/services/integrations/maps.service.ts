@@ -1,23 +1,23 @@
-import type { CreateMapsRequest, Location, LocationResponse } from "../models/location";
-import type { PatchMapsDto } from "../validation/schemas/maps.schemas";
+import type { CreateMapsRequest, Location, LocationResponse } from "../../models/location";
+import type { PatchMapsDto } from "../../validation/schemas/maps.schemas";
 import { BadRequestError, NotFoundError } from "@shared/errors/http-error";
 import { EnvConfig } from "@server/shared/config/env.config";
 import {
   createFromMaps,
   generateGoogleMapsUrl,
   geocode,
-} from "./location.helper";
+} from "../geocoding/location-geocoding.helper";
 import {
   getLocationById,
   saveLocation,
   updateLocationById,
-} from "../repositories/location.repository";
-import { getInstagramEmbedsByLocationId } from "../repositories/instagram-embed.repository";
-import { getUploadsByLocationId } from "../repositories/upload.repository";
-import { transformLocationToResponse } from "../utils/location-utils";
-import { validateCategory, validateCategoryWithDefault } from "../utils/category-utils";
-import { TaxonomyService } from "./taxonomy.service";
-import { TaxonomyCorrectionService } from "./taxonomy-correction.service";
+} from "../../repositories/location.repository";
+import { getInstagramEmbedsByLocationId } from "../../repositories/instagram-embed.repository";
+import { getUploadsByLocationId } from "../../repositories/upload.repository";
+import { transformLocationToResponse } from "../../utils/location-utils";
+import { validateCategory, validateCategoryWithDefault } from "../../utils/category-utils";
+import { TaxonomyService } from "../taxonomy/taxonomy.service";
+import { TaxonomyCorrectionService } from "../taxonomy/taxonomy-correction.service";
 
 export class MapsService {
   constructor(

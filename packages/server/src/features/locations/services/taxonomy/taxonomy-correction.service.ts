@@ -8,14 +8,14 @@ import {
   countAffectedLocations,
   findAffectedLocationSamples,
   type TaxonomyCorrection,
-} from "../repositories/taxonomy-correction.repository";
+} from "../../repositories/taxonomy-correction.repository";
 import {
   deduplicatePendingTaxonomy,
   bulkUpdatePendingTaxonomy,
-} from "../repositories/location-hierarchy.repository";
-import { bulkUpdateLocationKeys } from "../repositories/location.repository";
+} from "../../repositories/location-hierarchy.repository";
+import { bulkUpdateLocationKeys } from "../../repositories/location.repository";
 import { getDb } from "@server/shared/db/client";
-import { parseLocationValue } from "../utils/location-utils";
+import { parseLocationValue } from "../../utils/location-utils";
 import {
   BadRequestError,
   NotFoundError,

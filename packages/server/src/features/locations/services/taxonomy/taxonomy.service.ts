@@ -6,10 +6,10 @@ import {
   rejectTaxonomyEntry,
   getPendingTaxonomyEntries,
   getLocationCountByTaxonomy
-} from "../repositories/location-hierarchy.repository";
-import { parseLocationValue } from "../utils/location-utils";
+} from "../../repositories/location-hierarchy.repository";
+import { parseLocationValue } from "../../utils/location-utils";
 import { NotFoundError, BadRequestError } from "@server/shared/core/errors/http-error";
-import type { LocationHierarchy } from "../models/location";
+import type { LocationHierarchy } from "../../models/location";
 
 export interface PendingTaxonomyEntryWithCount extends LocationHierarchy {
   locationCount: number;

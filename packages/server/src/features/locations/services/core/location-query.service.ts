@@ -1,8 +1,8 @@
-import type { LocationWithNested, LocationResponse, LocationBasic } from "../models/location";
-import { getAllLocations, getLocationsByCategory, getLocationById } from "../repositories/location.repository";
-import { getAllInstagramEmbeds } from "../repositories/instagram-embed.repository";
-import { getAllUploads } from "../repositories/upload.repository";
-import { transformLocationToResponse, transformLocationToBasicResponse, isLocationInScope } from "../utils/location-utils";
+import type { LocationWithNested, LocationResponse, LocationBasic } from "../../models/location";
+import { getAllLocations, getLocationsByCategory, getLocationById } from "../../repositories/location.repository";
+import { getAllInstagramEmbeds } from "../../repositories/instagram-embed.repository";
+import { getAllUploads } from "../../repositories/upload.repository";
+import { transformLocationToResponse, transformLocationToBasicResponse, isLocationInScope } from "../../utils/location-utils";
 
 export class LocationQueryService {
   listLocations(category?: string, locationKey?: string): LocationResponse[] {

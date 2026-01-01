@@ -1,5 +1,5 @@
 import Database from "bun:sqlite";
-import { slugifyLocationPart } from "../../../features/locations/services/location.helper";
+import { slugifyLocationPart } from "../../../features/locations/services/geocoding/location-geocoding.helper";
 
 /**
  * Migration: Add slug column to locations table

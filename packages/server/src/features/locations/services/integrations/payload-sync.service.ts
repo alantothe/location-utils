@@ -1,13 +1,12 @@
-import type { LocationResponse } from "../models/location";
-import type { LocationCategory } from "../models/location";
+import type { LocationResponse, LocationCategory } from "../../models/location";
 import { BadRequestError, NotFoundError, ServiceUnavailableError } from "@shared/errors/http-error";
 import { PayloadApiClient } from "@server/shared/services/external/payload-api.client";
 import type { PayloadLocationCreateData } from "@server/shared/services/external/payload-api.client";
 import { ImageStorageService } from "@server/shared/services/storage/image-storage.service";
-import { LocationQueryService } from "./location-query.service";
-import * as PayloadSyncRepo from "../repositories/payload-sync.repository";
-import type { PayloadSyncState } from "../repositories/payload-sync.repository";
-import { formatLocationName, parseLocationValue } from "../utils/location-utils";
+import { LocationQueryService } from "../core/location-query.service";
+import * as PayloadSyncRepo from "../../repositories/payload-sync.repository";
+import type { PayloadSyncState } from "../../repositories/payload-sync.repository";
+import { formatLocationName, parseLocationValue } from "../../utils/location-utils";
 
 /**
  * Mapping from ISO country codes to phone country codes

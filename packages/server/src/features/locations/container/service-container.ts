@@ -4,15 +4,17 @@ import { InstagramApiClient } from "@server/shared/services/external/instagram-a
 import { PayloadApiClient } from "@server/shared/services/external/payload-api.client";
 import { BigDataCloudClient } from "@server/shared/services/external/bigdatacloud-api.client";
 import { GeoapifyClient } from "@server/shared/services/external/geoapify-api.client";
-import { MapsService } from "../services/maps.service";
-import { InstagramService } from "../services/instagram.service";
-import { UploadsService } from "../services/uploads.service";
-import { LocationQueryService } from "../services/location-query.service";
-import { LocationMutationService } from "../services/location-mutation.service";
-import { TaxonomyService } from "../services/taxonomy.service";
-import { DistrictExtractionService } from "../services/district-extraction.service";
-import { TaxonomyCorrectionService } from "../services/taxonomy-correction.service";
-import { PayloadSyncService } from "../services/payload-sync.service";
+import {
+  MapsService,
+  InstagramService,
+  UploadsService,
+  LocationQueryService,
+  LocationMutationService,
+  TaxonomyService,
+  DistrictExtractionService,
+  TaxonomyCorrectionService,
+  PayloadSyncService
+} from "../services";
 
 export class ServiceContainer {
   private static instance: ServiceContainer;

@@ -1,14 +1,14 @@
-import type { AddInstagramRequest, InstagramEmbed } from "../models/location";
+import type { AddInstagramRequest, InstagramEmbed } from "../../models/location";
 import { BadRequestError, NotFoundError } from "@shared/errors/http-error";
 import { ImageStorageService } from "@server/shared/services/storage/image-storage.service";
 import { InstagramApiClient } from "@server/shared/services/external/instagram-api.client";
-import { createFromInstagram, extractInstagramData } from "./location.helper";
-import { getLocationById } from "../repositories/location.repository";
+import { createFromInstagram, extractInstagramData } from "../geocoding/location-geocoding.helper";
+import { getLocationById } from "../../repositories/location.repository";
 import {
   saveInstagramEmbed,
   getInstagramEmbedById,
   deleteInstagramEmbedById
-} from "../repositories/instagram-embed.repository";
+} from "../../repositories/instagram-embed.repository";
 
 export class InstagramService {
   constructor(

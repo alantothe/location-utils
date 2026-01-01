@@ -12,7 +12,7 @@
  */
 
 import { getDb } from '../client';
-import { generateGoogleMapsUrl } from '../../../features/locations/services/location.helper';
+import { generateGoogleMapsUrl } from '../../../features/locations/services/geocoding/location-geocoding.helper';
 
 async function fixGoogleMapsUrls() {
   console.log('🔧 Starting Google Maps URL migration...\n');
