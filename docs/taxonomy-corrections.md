@@ -424,7 +424,7 @@ CREATE INDEX idx_corrections_lookup ON taxonomy_corrections(incorrect_value, par
 **Repository:** `packages/server/src/features/locations/repositories/taxonomy-correction.repository.ts`
 - Database queries for CRUD operations
 
-**Controller:** `packages/server/src/features/locations/controllers/taxonomy-correction.controller.ts`
+**Controller:** `packages/server/src/features/locations/controllers/admin/taxonomy-correction.controller.ts`
 - HTTP endpoint handlers
 
 **Validation:** `packages/server/src/features/locations/validation/schemas/taxonomy-correction.schemas.ts`

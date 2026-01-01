@@ -1,7 +1,7 @@
 import type { Context } from "hono";
-import { ServiceContainer } from "../container/service-container";
+import { ServiceContainer } from "../../container/service-container";
 import { successResponse, errorResponse } from "@shared/types/api-response";
-import type { ListLocationsQueryDto, DeleteLocationSlugDto, DeleteLocationIdDto } from "../validation/schemas/locations.schemas";
+import type { ListLocationsQueryDto, DeleteLocationSlugDto, DeleteLocationIdDto } from "../../validation/schemas/locations.schemas";
 
 const container = ServiceContainer.getInstance();
 

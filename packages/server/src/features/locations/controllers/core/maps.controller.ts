@@ -1,7 +1,7 @@
 import type { Context } from "hono";
-import { ServiceContainer } from "../container/service-container";
+import { ServiceContainer } from "../../container/service-container";
 import { successResponse } from "@shared/types/api-response";
-import type { CreateMapsDto, PatchMapsDto } from "../validation/schemas/maps.schemas";
+import type { CreateMapsDto, PatchMapsDto } from "../../validation/schemas/maps.schemas";
 
 const container = ServiceContainer.getInstance();
 

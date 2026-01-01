@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { getCountryNames } from "./src/features/locations/controllers/hierarchy.controller";
+import { getCountryNames } from "./src/features/locations/controllers/core";
 
 // Mock Hono Context for testing
 function mockContext() {

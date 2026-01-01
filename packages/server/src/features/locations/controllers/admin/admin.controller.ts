@@ -1,6 +1,6 @@
 import type { Context} from "hono";
 import { getDb } from "@server/shared/db/client";
-import { ServiceContainer } from "../container/service-container";
+import { ServiceContainer } from "../../container/service-container";
 import { successResponse } from "@shared/types/api-response";
 import { BadRequestError } from "@shared/errors/http-error";
 

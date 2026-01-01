@@ -218,10 +218,10 @@ export function deleteLocationById(id: number): boolean {
     }
 
     // Delete related instagram_embeds
-    db.run("DELETE FROM instagram_embeds WHERE location_id = ?", id);
+    db.run("DELETE FROM instagram_embeds WHERE location_id = ?", [id]);
 
     // Delete related uploads
-    db.run("DELETE FROM uploads WHERE location_id = ?", id);
+    db.run("DELETE FROM uploads WHERE location_id = ?", [id]);
 
     // Delete the location itself
     const deleteStmt = db.query("DELETE FROM locations WHERE id = $id");
@@ -245,10 +245,10 @@ export function deleteLocationBySlug(slug: string): boolean {
     }
 
     // Delete related instagram_embeds
-    db.run("DELETE FROM instagram_embeds WHERE location_id = ?", location.id);
+    db.run("DELETE FROM instagram_embeds WHERE location_id = ?", [location.id]);
 
     // Delete related uploads
-    db.run("DELETE FROM uploads WHERE location_id = ?", location.id);
+    db.run("DELETE FROM uploads WHERE location_id = ?", [location.id]);
 
     // Delete the location itself
     const deleteStmt = db.query("DELETE FROM locations WHERE slug = $slug");

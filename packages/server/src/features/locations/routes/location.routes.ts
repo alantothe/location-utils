@@ -8,37 +8,26 @@ import { taxonomyLocationKeyParamsSchema } from "../validation/schemas/taxonomy.
 import { createCorrectionSchema, deleteCorrectionParamsSchema } from "../validation/schemas/taxonomy-correction.schemas";
 import { syncLocationIdSchema, syncAllSchema } from "../validation/schemas/payload.schemas";
 
-// Import new controllers
-import { getLocations, getLocationsBasic, getLocationById, deleteLocationBySlug, deleteLocationById } from "../controllers/locations.controller";
-import { postAddMaps, patchMapsById } from "../controllers/maps.controller";
-import { postAddInstagram, deleteInstagramEmbed } from "../controllers/instagram.controller";
-import { postAddUpload, postAddUploadImageSet, deleteUpload } from "../controllers/uploads.controller";
-import { serveImage } from "../controllers/files.controller";
+// Import controllers
 import {
-  getLocationHierarchy,
-  getCountries,
-  getCountryNames,
-  getCitiesByCountry,
-  getNeighborhoodsByCity,
-} from "../controllers/hierarchy.controller";
-import { clearDatabase, scanOrphanedFiles, cleanupOrphanedFiles } from "../controllers/admin.controller";
-import {
-  getPendingTaxonomy,
-  approveTaxonomy,
-  rejectTaxonomy,
-} from "../controllers/taxonomy-admin.controller";
-import {
-  getAllCorrections,
-  previewCorrection,
-  createCorrection,
-  deleteCorrection,
-} from "../controllers/taxonomy-correction.controller";
-import {
-  postSyncLocation,
-  postSyncAll,
-  getSyncStatus,
-  getTestConnection,
-} from "../controllers/payload.controller";
+  // Core
+  getLocations, getLocationsBasic, getLocationById, deleteLocationBySlug, deleteLocationById,
+  postAddMaps, patchMapsById,
+  getLocationHierarchy, getCountries, getCountryNames, getCitiesByCountry, getNeighborhoodsByCity,
+
+  // Content
+  postAddInstagram, deleteInstagramEmbed,
+  postAddUpload, postAddUploadImageSet, deleteUpload,
+  serveImage,
+
+  // Admin
+  clearDatabase, scanOrphanedFiles, cleanupOrphanedFiles,
+  getPendingTaxonomy, approveTaxonomy, rejectTaxonomy,
+  getAllCorrections, previewCorrection, createCorrection, deleteCorrection,
+
+  // Integration
+  postSyncLocation, postSyncAll, getSyncStatus, getTestConnection,
+} from "../controllers";
 
 // Location routes
 app.get("/api/locations", validateQuery(listLocationsQuerySchema), getLocations);

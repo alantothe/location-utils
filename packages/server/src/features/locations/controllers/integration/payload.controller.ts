@@ -1,7 +1,7 @@
 import type { Context } from "hono";
-import { ServiceContainer } from "../container/service-container";
+import { ServiceContainer } from "../../container/service-container";
 import { successResponse } from "@shared/types/api-response";
-import type { SyncLocationIdDto, SyncAllDto } from "../validation/schemas/payload.schemas";
+import type { SyncLocationIdDto, SyncAllDto } from "../../validation/schemas/payload.schemas";
 
 const container = ServiceContainer.getInstance();
 

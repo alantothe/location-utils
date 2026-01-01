@@ -1,15 +1,15 @@
 #!/usr/bin/env bun
 
-import { getLocations, getLocationsBasic } from "./packages/server/src/features/locations/controllers/locations.controller";
-import { patchMapsById } from "./packages/server/src/features/locations/controllers/maps.controller";
-import { serveImage } from "./packages/server/src/features/locations/controllers/files.controller";
+import { getLocations, getLocationsBasic } from "./packages/server/src/features/locations/controllers/core";
+import { patchMapsById } from "./packages/server/src/features/locations/controllers/core";
+import { serveImage } from "./packages/server/src/features/locations/controllers/content";
 import {
   getLocationHierarchy,
   getCountries,
   getCountryNames,
   getCitiesByCountry,
   getNeighborhoodsByCity,
-} from "./packages/server/src/features/locations/controllers/hierarchy.controller";
+} from "./packages/server/src/features/locations/controllers/core";
 
 console.log("🚀 Testing URL Util Routes\n");
 
