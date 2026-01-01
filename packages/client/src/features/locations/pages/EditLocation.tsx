@@ -18,7 +18,7 @@ export function EditLocation() {
   const { mutate, isPending, isSuccess, error: updateError } = useUpdateLocation();
 
   const form = useForm<EditLocationFormData>({
-    resolver: zodResolver(editLocationSchema as any),
+    resolver: zodResolver(editLocationSchema),
     defaultValues: {
       title: "",
       category: undefined,

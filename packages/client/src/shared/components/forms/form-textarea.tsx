@@ -1,18 +1,18 @@
 import * as React from "react";
-import { type Control } from "react-hook-form";
+import { type Control, type FieldValues, type Path } from "react-hook-form";
 import { Textarea } from "@client/components/ui";
 import { FormBase } from "./form-base";
 
-export interface FormTextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
-  name: string;
+export interface FormTextareaProps<T extends FieldValues = FieldValues> extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+  name: Path<T>;
   label: string;
-  control: Control<any>;
+  control: Control<T>;
   description?: string;
   onPaste?: (event: React.ClipboardEvent<HTMLTextAreaElement>) => void;
   onInput?: (event: React.FormEvent<HTMLTextAreaElement>) => void;
 }
 
-export function FormTextarea({
+export function FormTextarea<T extends FieldValues = FieldValues>({
   name,
   label,
   control,
@@ -20,7 +20,7 @@ export function FormTextarea({
   onPaste,
   onInput,
   ...textareaProps
-}: FormTextareaProps) {
+}: FormTextareaProps<T>) {
   return (
     <FormBase
       name={name}

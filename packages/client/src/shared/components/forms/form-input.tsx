@@ -1,18 +1,18 @@
 import * as React from "react";
-import { type Control } from "react-hook-form";
+import { type Control, type FieldValues, type Path } from "react-hook-form";
 import { Input } from "@client/components/ui";
 import { FormBase } from "./form-base";
 
-export interface FormInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  name: string;
+export interface FormInputProps<T extends FieldValues = FieldValues> extends React.InputHTMLAttributes<HTMLInputElement> {
+  name: Path<T>;
   label: string;
-  control: Control<any>;
+  control: Control<T>;
   description?: string;
   onPaste?: (event: React.ClipboardEvent<HTMLInputElement>) => void;
   onInput?: (event: React.FormEvent<HTMLInputElement>) => void;
 }
 
-export function FormInput({
+export function FormInput<T extends FieldValues = FieldValues>({
   name,
   label,
   control,
@@ -20,7 +20,7 @@ export function FormInput({
   onPaste,
   onInput,
   ...inputProps
-}: FormInputProps) {
+}: FormInputProps<T>) {
   return (
     <FormBase
       name={name}

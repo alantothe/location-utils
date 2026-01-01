@@ -35,7 +35,7 @@ export function AddUploadFilesForm({ locationId }: AddUploadFilesFormProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<AddUploadFilesFormData>({
-    resolver: zodResolver(addUploadFilesSchema as any),
+    resolver: zodResolver(addUploadFilesSchema),
     defaultValues: {
       photographerCredit: "",
     },

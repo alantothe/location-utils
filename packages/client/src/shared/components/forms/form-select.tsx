@@ -1,25 +1,25 @@
 import * as React from "react";
-import { type Control } from "react-hook-form";
+import { type Control, type FieldValues, type Path } from "react-hook-form";
 import { Select, SelectTrigger, SelectValue, SelectContent } from "@client/components/ui";
 import { FormBase } from "./form-base";
 
-export interface FormSelectProps {
-  name: string;
+export interface FormSelectProps<T extends FieldValues = FieldValues> {
+  name: Path<T>;
   label: string;
-  control: Control<any>;
+  control: Control<T>;
   children: React.ReactNode;
   placeholder?: string;
   description?: string;
 }
 
-export function FormSelect({
+export function FormSelect<T extends FieldValues = FieldValues>({
   name,
   label,
   control,
   children,
   placeholder,
   description,
-}: FormSelectProps) {
+}: FormSelectProps<T>) {
   return (
     <FormBase
       name={name}

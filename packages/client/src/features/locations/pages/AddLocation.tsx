@@ -11,7 +11,7 @@ export function AddLocation() {
   const { mutate, isPending, isSuccess, error } = useCreateLocation();
 
   const form = useForm<AddLocationFormData>({
-    resolver: zodResolver(addLocationSchema as any),
+    resolver: zodResolver(addLocationSchema),
     defaultValues: {
       name: "",
       address: "",

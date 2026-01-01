@@ -17,7 +17,7 @@ export function AddInstagramEmbedForm({ locationId }: AddInstagramEmbedFormProps
   const { showToast } = useToast();
 
   const form = useForm<AddInstagramEmbedFormData>({
-    resolver: zodResolver(addInstagramEmbedSchema as any),
+    resolver: zodResolver(addInstagramEmbedSchema),
     defaultValues: {
       embedCode: "",
     },

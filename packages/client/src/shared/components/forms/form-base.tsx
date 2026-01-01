@@ -1,18 +1,18 @@
 import * as React from "react";
-import { Controller, type Control, type ControllerRenderProps, type ControllerFieldState } from "react-hook-form";
+import { Controller, type Control, type ControllerRenderProps, type ControllerFieldState, type FieldValues, type Path } from "react-hook-form";
 import { Field, FieldLabel, FieldDescription, FieldError, FieldContent } from "../ui/field";
 
-export interface FormBaseProps {
-  name: string;
+export interface FormBaseProps<T extends FieldValues = FieldValues> {
+  name: Path<T>;
   label: string;
-  control: Control<any>;
-  children: (field: ControllerRenderProps<any, any>, fieldState: ControllerFieldState) => React.ReactNode;
+  control: Control<T>;
+  children: (field: ControllerRenderProps<T, Path<T>>, fieldState: ControllerFieldState) => React.ReactNode;
   description?: string;
   orientation?: "vertical" | "horizontal";
   controlFirst?: boolean;
 }
 
-export function FormBase({
+export function FormBase<T extends FieldValues = FieldValues>({
   name,
   label,
   control,
@@ -20,7 +20,7 @@ export function FormBase({
   description,
   orientation = "vertical",
   controlFirst = false,
-}: FormBaseProps) {
+}: FormBaseProps<T>) {
   return (
     <Controller
       control={control}
