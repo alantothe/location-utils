@@ -131,8 +131,8 @@ export class PayloadSyncService {
         instagramCount: payloadData.instagramGallery?.length || 0,
       });
 
-      // Create entry in Payload
-      const response = await this.payloadClient.createEntry(collection, payloadData);
+      // Upsert entry (update if exists by title, create if not)
+      const response = await this.payloadClient.upsertEntry(collection, payloadData);
 
       // Save sync state
       PayloadSyncRepo.saveSyncState(

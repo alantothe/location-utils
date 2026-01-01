@@ -316,6 +316,65 @@ export class PayloadApiClient {
   }
 
   /**
+   * Find an entry in a Payload collection by title
+   * Used to implement upsert logic (update if exists, create if not)
+   *
+   * Note: Title field has unique: true constraint in all collections
+   * (Dining, Accommodations, Attractions, Nightlife)
+   */
+  async findEntryByTitle(
+    collection: "dining" | "accommodations" | "attractions" | "nightlife",
+    title: string
+  ): Promise<string | null> {
+    if (!this.isConfigured()) {
+      throw new ServiceUnavailableError("Payload CMS");
+    }
+
+    const token = await this.ensureAuthenticated();
+    const params = new URLSearchParams({
+      "where[title][equals]": title,
+      "limit": "1",
+    });
+
+    console.log(`[Payload] Lookup entry by title`, {
+      collection,
+      title,
+      url: `${this.apiUrl}/api/${collection}?${params.toString()}`,
+    });
+
+    const response = await fetch(`${this.apiUrl}/api/${collection}?${params.toString()}`, {
+      method: "GET",
+      headers: {
+        "Authorization": `JWT ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("[Payload] Entry lookup failed", {
+        collection,
+        title,
+        status: response.status,
+        errorText,
+      });
+      throw new Error(`Payload entry lookup failed: ${response.status} - ${errorText}`);
+    }
+
+    const result = await response.json() as PayloadLocationQueryResponse;
+    const firstDoc = result.docs?.[0];
+    const totalDocs = result.totalDocs ?? result.docs?.length ?? 0;
+
+    console.log("[Payload] Entry lookup result", {
+      collection,
+      title,
+      totalDocs,
+      payloadDocId: firstDoc?.id || null,
+    });
+
+    return firstDoc?.id || null;
+  }
+
+  /**
    * Create a location entry in Payload
    */
   async createLocation(data: PayloadLocationCreateData): Promise<string> {
@@ -403,6 +462,99 @@ export class PayloadApiClient {
     console.log(`✓ Created ${collection} entry in Payload: ${result.doc.title} → ID: ${result.doc.id}`);
 
     return result;
+  }
+
+  /**
+   * Update an existing entry in a Payload collection
+   */
+  async updateEntry(
+    collection: "dining" | "accommodations" | "attractions" | "nightlife",
+    docId: string,
+    data: PayloadEntryData
+  ): Promise<PayloadEntryResponse> {
+    if (!this.isConfigured()) {
+      throw new ServiceUnavailableError("Payload CMS");
+    }
+
+    const token = await this.ensureAuthenticated();
+
+    console.log("[Payload] Update entry", {
+      collection,
+      docId,
+      title: data.title,
+      type: data.type,
+      locationRef: data.locationRef,
+      galleryCount: data.gallery?.length || 0,
+      instagramGalleryCount: data.instagramGallery?.length || 0,
+    });
+
+    const response = await fetch(`${this.apiUrl}/api/${collection}/${docId}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `JWT ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("[Payload] Entry update failed", {
+        collection,
+        docId,
+        status: response.status,
+        errorText,
+      });
+      throw new Error(`Payload entry update failed: ${response.status} - ${errorText}`);
+    }
+
+    const result = await response.json() as PayloadEntryResponse;
+
+    console.log(`✓ Updated ${collection} entry in Payload: ${result.doc.title} → ID: ${result.doc.id}`);
+
+    return result;
+  }
+
+  /**
+   * Upsert an entry in a Payload collection (update if exists, create if not)
+   * Uses title as the unique identifier to determine existence
+   *
+   * @param collection - The Payload collection name
+   * @param data - The entry data to create/update
+   * @returns The response from create or update operation
+   */
+  async upsertEntry(
+    collection: "dining" | "accommodations" | "attractions" | "nightlife",
+    data: PayloadEntryData
+  ): Promise<PayloadEntryResponse> {
+    if (!this.isConfigured()) {
+      throw new ServiceUnavailableError("Payload CMS");
+    }
+
+    console.log(`[Payload] Upserting entry in ${collection}`, {
+      title: data.title,
+    });
+
+    // Step 1: Check if entry exists by title (unique constraint field)
+    const existingDocId = await this.findEntryByTitle(collection, data.title);
+
+    // Step 2: Update if exists, create if not
+    if (existingDocId) {
+      console.log(`[Payload] Entry exists, updating`, {
+        collection,
+        docId: existingDocId,
+        title: data.title,
+      });
+
+      return await this.updateEntry(collection, existingDocId, data);
+    } else {
+      console.log(`[Payload] Entry doesn't exist, creating`, {
+        collection,
+        title: data.title,
+      });
+
+      return await this.createEntry(collection, data);
+    }
   }
 
   /**
