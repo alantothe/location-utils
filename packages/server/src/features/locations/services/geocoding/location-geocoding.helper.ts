@@ -132,7 +132,7 @@ export async function reverseGeocodeWithBigDataCloud(
 ): Promise<BigDataCloudLocationData | null> {
   try {
     // Use BigDataCloudClient for API call
-    const { ServiceContainer } = await import('../container/service-container');
+    const { ServiceContainer } = await import('@server/features/locations/container/service-container');
     const container = ServiceContainer.getInstance();
 
     const data = await container.bigDataCloudClient.reverseGeocode(latitude, longitude);
@@ -177,7 +177,7 @@ async function reverseGeocodeWithGeoapify(
   countryCode?: string
 ): Promise<BigDataCloudLocationData | null> {
   try {
-    const { ServiceContainer } = await import('../container/service-container');
+    const { ServiceContainer } = await import('@server/features/locations/container/service-container');
     const container = ServiceContainer.getInstance();
 
     if (!container.geoapifyClient.isConfigured()) {

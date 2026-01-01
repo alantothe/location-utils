@@ -268,7 +268,8 @@ export class UploadsService {
     } catch (error) {
       console.error(`Failed to extract metadata for ${filePath}:`, error);
       // Throw error instead of returning zeros to prevent bad data from being saved
-      throw new BadRequestError(`Failed to extract image metadata: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new BadRequestError(`Failed to extract image metadata: ${errorMessage}`);
     }
   }
 

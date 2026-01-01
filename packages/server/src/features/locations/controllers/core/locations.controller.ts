@@ -1,5 +1,5 @@
 import type { Context } from "hono";
-import { ServiceContainer } from "../../container/service-container";
+import { ServiceContainer } from "@server/features/locations/container/service-container";
 import { successResponse, errorResponse } from "@shared/types/api-response";
 import type { ListLocationsQueryDto, DeleteLocationSlugDto, DeleteLocationIdDto } from "../../validation/schemas/locations.schemas";
 

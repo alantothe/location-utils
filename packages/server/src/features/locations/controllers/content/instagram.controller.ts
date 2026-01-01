@@ -1,5 +1,5 @@
 import type { Context } from "hono";
-import { ServiceContainer } from "../../container/service-container";
+import { ServiceContainer } from "@server/features/locations/container/service-container";
 import { successResponse } from "@shared/types/api-response";
 import type { AddInstagramDto, AddInstagramParamsDto, DeleteInstagramEmbedParams } from "../../validation/schemas/instagram.schemas";
 import type { AddInstagramRequest } from "../../models/location";

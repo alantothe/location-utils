@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 import type { ImageVariantType } from "@url-util/shared";
-import { ServiceContainer } from "../../container/service-container";
+import { ServiceContainer } from "@server/features/locations/container/service-container";
 import { successResponse } from "@shared/types/api-response";
 import { BadRequestError, NotFoundError } from "@shared/errors/http-error";
 import { MAX_FILE_SIZE, MAX_FILES, MAX_TOTAL_SIZE, type AddUploadParamsDto, type DeleteUploadParamsDto } from "../../validation/schemas/uploads.schemas";
