@@ -2,10 +2,12 @@ import type { LocationResponse } from "../models/location";
 import type { LocationCategory } from "../models/location";
 import { BadRequestError, NotFoundError, ServiceUnavailableError } from "@shared/errors/http-error";
 import { PayloadApiClient } from "@server/shared/services/external/payload-api.client";
+import type { PayloadLocationCreateData } from "@server/shared/services/external/payload-api.client";
 import { ImageStorageService } from "@server/shared/services/storage/image-storage.service";
 import { LocationQueryService } from "./location-query.service";
 import * as PayloadSyncRepo from "../repositories/payload-sync.repository";
 import type { PayloadSyncState } from "../repositories/payload-sync.repository";
+import { formatLocationName, parseLocationValue } from "../utils/location-utils";
 
 /**
  * Mapping from ISO country codes to phone country codes
@@ -78,7 +80,30 @@ export class PayloadSyncService {
         throw new NotFoundError("Location", locationId);
       }
 
+      console.log("📍 Location details", {
+        locationId,
+        title: location.title || location.source.name,
+        category: location.category,
+        locationKey: location.locationKey || null,
+      });
+
       console.log(`🔄 Syncing location ${locationId} (${location.title}) to Payload...`);
+
+      // Resolve Payload location reference (REQUIRED by Payload)
+      const locationRef = await this.resolvePayloadLocationRef(location);
+      console.log("🔗 Payload location ref", {
+        locationId,
+        locationKey: location.locationKey || null,
+        locationRef,
+      });
+
+      // If locationRef is required by Payload but resolution failed, abort sync
+      if (!locationRef) {
+        throw new BadRequestError(
+          `Cannot sync location ${locationId}: locationRef is required by Payload CMS. ` +
+          `Location must have a valid locationKey (current: ${location.locationKey || "none"})`
+        );
+      }
 
       // Upload images and create Instagram posts
       const uploadedImages = await this.uploadLocationImages(location);
@@ -95,8 +120,16 @@ export class PayloadSyncService {
         );
       }
 
-      // Map location data to Payload format
-      const payloadData = this.mapLocationToPayloadFormat(location, uploadedImages);
+      // Map location data to Payload format (locationRef is guaranteed at this point)
+      const payloadData = this.mapLocationToPayloadFormat(location, uploadedImages, locationRef);
+      console.log("🧾 Payload entry payload", {
+        locationId,
+        collection,
+        title: payloadData.title,
+        locationRef: payloadData.locationRef,
+        galleryCount: payloadData.gallery.length,
+        instagramCount: payloadData.instagramGallery?.length || 0,
+      });
 
       // Create entry in Payload
       const response = await this.payloadClient.createEntry(collection, payloadData);
@@ -313,15 +346,17 @@ export class PayloadSyncService {
 
   /**
    * Map url-util location to Payload format
+   * @param locationRef - REQUIRED by Payload CMS, guaranteed to be present by caller
    */
   private mapLocationToPayloadFormat(
     location: LocationResponse,
-    uploadedImages: UploadedImagesResult
+    uploadedImages: UploadedImagesResult,
+    locationRef: string
   ) {
     return {
       title: location.title || location.source.name,
       type: this.mapCategoryToType(location.category),
-      location: this.mapLocationKeyToPayloadLocation(location.locationKey || undefined) || "unknown",
+      locationRef, // Always included - required by Payload
       gallery: uploadedImages.galleryImageIds.map(id => ({
         image: id,
         altText: "",
@@ -421,5 +456,84 @@ export class PayloadSyncService {
     }
 
     return this.mapCategoryToCollection(location.category);
+  }
+
+  /**
+   * Resolve Payload location reference by locationKey
+   */
+  private async resolvePayloadLocationRef(location: LocationResponse): Promise<string | null> {
+    const locationKey = location.locationKey || "";
+
+    if (!locationKey) {
+      console.warn(`⚠️  Location ${location.id} missing locationKey; skipping Payload location lookup`);
+      return null;
+    }
+
+    const locationRef = await this.payloadClient.getLocationRefByKey(locationKey);
+
+    if (locationRef) {
+      return locationRef;
+    }
+
+    console.warn(`⚠️  No Payload location found for locationKey: ${locationKey}`);
+
+    const createPayload = this.buildPayloadLocationData(locationKey);
+    if (!createPayload) {
+      console.warn(`⚠️  Unable to build Payload location payload for ${locationKey}`);
+      return null;
+    }
+
+    console.log("🧭 Creating Payload location", {
+      locationKey,
+      payload: createPayload,
+    });
+
+    const createdRef = await this.payloadClient.createLocation(createPayload);
+    console.log("✅ Payload location created", {
+      locationKey,
+      locationRef: createdRef,
+    });
+
+    return createdRef;
+  }
+
+  /**
+   * Build a Payload location payload from a locationKey
+   */
+  private buildPayloadLocationData(locationKey: string): PayloadLocationCreateData | null {
+    const parsed = parseLocationValue(locationKey);
+    if (!parsed) {
+      return null;
+    }
+
+    const countryName = formatLocationName(parsed.country);
+
+    if (parsed.city && parsed.neighborhood) {
+      return {
+        level: "neighborhood",
+        country: parsed.country,
+        city: parsed.city,
+        neighborhood: parsed.neighborhood,
+        countryName,
+        cityName: formatLocationName(parsed.city),
+        neighborhoodName: formatLocationName(parsed.neighborhood),
+      };
+    }
+
+    if (parsed.city) {
+      return {
+        level: "city",
+        country: parsed.country,
+        city: parsed.city,
+        countryName,
+        cityName: formatLocationName(parsed.city),
+      };
+    }
+
+    return {
+      level: "country",
+      country: parsed.country,
+      countryName,
+    };
   }
 }

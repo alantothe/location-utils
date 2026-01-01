@@ -35,7 +35,7 @@ export interface PayloadEntryResponse {
     id: string;
     title: string;
     type?: string;
-    location: string;
+    locationRef?: string;
     gallery: Array<{
       image: {
         id: string;
@@ -49,6 +49,46 @@ export interface PayloadEntryResponse {
     status: "draft" | "published";
     createdAt: string;
     updatedAt: string;
+  };
+}
+
+export interface PayloadLocationQueryResponse {
+  docs: Array<{
+    id: string;
+    locationKey?: string;
+  }>;
+  totalDocs?: number;
+}
+
+export type PayloadLocationCreateData =
+  | {
+      level: "country";
+      country: string;
+      countryName: string;
+    }
+  | {
+      level: "city";
+      country: string;
+      city: string;
+      countryName: string;
+      cityName: string;
+    }
+  | {
+      level: "neighborhood";
+      country: string;
+      city: string;
+      neighborhood: string;
+      countryName: string;
+      cityName: string;
+      neighborhoodName: string;
+    };
+
+export interface PayloadLocationCreateResponse {
+  message: string;
+  doc: {
+    id: string;
+    level: string;
+    locationKey?: string;
   };
 }
 
@@ -89,7 +129,13 @@ export interface PayloadInstagramGalleryItem {
 export interface PayloadEntryData {
   title: string;
   type?: string;
-  location: string;
+  /**
+   * IMPORTANT: Use locationRef only, never include a 'location' field.
+   * The Payload sync hook gives location precedence - if it exists (even if null),
+   * it will null out both location and locationRef before processing.
+   * Always omit this field if null/undefined to avoid interfering with locationRef.
+   */
+  locationRef?: string;
   gallery: PayloadGalleryItem[];
   instagramGallery?: PayloadInstagramGalleryItem[];
   address?: string;
@@ -218,6 +264,99 @@ export class PayloadApiClient {
   }
 
   /**
+   * Find a location in Payload by locationKey and return its ID
+   */
+  async getLocationRefByKey(locationKey: string): Promise<string | null> {
+    if (!this.isConfigured()) {
+      throw new ServiceUnavailableError("Payload CMS");
+    }
+
+    if (!locationKey) {
+      return null;
+    }
+
+    const token = await this.ensureAuthenticated();
+    const params = new URLSearchParams({
+      "where[locationKey][equals]": locationKey,
+    });
+
+    console.log(`[Payload] Lookup locationRef`, {
+      locationKey,
+      url: `${this.apiUrl}/api/locations?${params.toString()}`,
+    });
+
+    const response = await fetch(`${this.apiUrl}/api/locations?${params.toString()}`, {
+      method: "GET",
+      headers: {
+        "Authorization": `JWT ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("[Payload] Location lookup failed", {
+        locationKey,
+        status: response.status,
+        errorText,
+      });
+      throw new Error(`Payload location lookup failed: ${response.status} - ${errorText}`);
+    }
+
+    const result = await response.json() as PayloadLocationQueryResponse;
+    const firstDoc = result.docs?.[0];
+    const totalDocs = result.totalDocs ?? result.docs?.length ?? 0;
+
+    console.log("[Payload] Location lookup result", {
+      locationKey,
+      totalDocs,
+      locationRef: firstDoc?.id || null,
+    });
+
+    return firstDoc?.id || null;
+  }
+
+  /**
+   * Create a location entry in Payload
+   */
+  async createLocation(data: PayloadLocationCreateData): Promise<string> {
+    if (!this.isConfigured()) {
+      throw new ServiceUnavailableError("Payload CMS");
+    }
+
+    const token = await this.ensureAuthenticated();
+
+    console.log("[Payload] Create location", data);
+
+    const response = await fetch(`${this.apiUrl}/api/locations`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `JWT ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("[Payload] Location creation failed", {
+        status: response.status,
+        errorText,
+      });
+      throw new Error(`Payload location creation failed: ${response.status} - ${errorText}`);
+    }
+
+    const result = await response.json() as PayloadLocationCreateResponse;
+
+    console.log("[Payload] Location created", {
+      id: result.doc.id,
+      level: result.doc.level,
+      locationKey: result.doc.locationKey || null,
+    });
+
+    return result.doc.id;
+  }
+
+  /**
    * Create an entry in a Payload collection
    */
   async createEntry(
@@ -230,6 +369,16 @@ export class PayloadApiClient {
 
     const token = await this.ensureAuthenticated();
 
+    console.log("[Payload] Create entry", {
+      collection,
+      title: data.title,
+      type: data.type,
+      locationRef: data.locationRef,
+      gallery: data.gallery,
+      instagramGallery: data.instagramGallery,
+      status: data.status,
+    });
+
     const response = await fetch(`${this.apiUrl}/api/${collection}`, {
       method: "POST",
       headers: {
@@ -241,6 +390,11 @@ export class PayloadApiClient {
 
     if (!response.ok) {
       const errorText = await response.text();
+      console.error("[Payload] Entry creation failed", {
+        collection,
+        status: response.status,
+        errorText,
+      });
       throw new Error(`Payload entry creation failed: ${response.status} - ${errorText}`);
     }
 
