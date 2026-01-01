@@ -2,8 +2,8 @@ import type { Upload, ImageMetadata, ImageSetUpload } from "../../models/locatio
 import type { ImageVariantType, ImageSet, ImageVariant, VARIANT_SPECS } from "@url-util/shared";
 import { BadRequestError, NotFoundError } from "@shared/errors/http-error";
 import { ImageStorageService } from "@server/shared/services/storage/image-storage.service";
-import { getLocationById } from "../../repositories/core/location.repository";
-import { saveUpload, getUploadById, deleteUploadById } from "../../repositories/content/upload.repository";
+import { getLocationById } from "../../repositories/core";
+import { saveUpload, getUploadById, deleteUploadById } from "../../repositories/content";
 import { createFromUpload, createFromImageSetUpload } from "../geocoding/location-geocoding.helper";
 import { extractImageMetadata } from "../../utils/image-metadata-extractor";
 import { join } from "node:path";

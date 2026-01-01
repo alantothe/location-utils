@@ -1,7 +1,7 @@
 import type { LocationWithNested, LocationResponse, LocationBasic } from "../../models/location";
-import { getAllLocations, getLocationsByCategory, getLocationById } from "../../repositories/core/location.repository";
-import { getAllInstagramEmbeds } from "../../repositories/content/instagram-embed.repository";
-import { getAllUploads } from "../../repositories/content/upload.repository";
+import { getAllLocations, getLocationsByCategory, getLocationById } from "../../repositories/core";
+import { getAllInstagramEmbeds } from "../../repositories/content";
+import { getAllUploads } from "../../repositories/content";
 import { transformLocationToResponse, transformLocationToBasicResponse, isLocationInScope } from "../../utils/location-utils";
 
 export class LocationQueryService {

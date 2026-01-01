@@ -8,12 +8,12 @@ import {
   countAffectedLocations,
   findAffectedLocationSamples,
   type TaxonomyCorrection,
-} from "../../repositories/taxonomy/taxonomy-correction.repository";
+} from "../../repositories/taxonomy";
 import {
   deduplicatePendingTaxonomy,
   bulkUpdatePendingTaxonomy,
-} from "../../repositories/taxonomy/location-hierarchy.repository";
-import { bulkUpdateLocationKeys } from "../../repositories/core/location.repository";
+} from "../../repositories/taxonomy";
+import { bulkUpdateLocationKeys } from "../../repositories/core";
 import { getDb } from "@server/shared/db/client";
 import { parseLocationValue } from "../../utils/location-utils";
 import {

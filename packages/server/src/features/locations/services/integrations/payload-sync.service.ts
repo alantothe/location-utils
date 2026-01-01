@@ -4,8 +4,8 @@ import { PayloadApiClient } from "@server/shared/services/external/payload-api.c
 import type { PayloadLocationCreateData } from "@server/shared/services/external/payload-api.client";
 import { ImageStorageService } from "@server/shared/services/storage/image-storage.service";
 import { LocationQueryService } from "../core/location-query.service";
-import * as PayloadSyncRepo from "../../repositories/integration/payload-sync.repository";
-import type { PayloadSyncState } from "../../repositories/integration/payload-sync.repository";
+import * as PayloadSyncRepo from "../../repositories/integration";
+import type { PayloadSyncState } from "../../repositories/integration";
 import { formatLocationName, parseLocationValue } from "../../utils/location-utils";
 
 /**

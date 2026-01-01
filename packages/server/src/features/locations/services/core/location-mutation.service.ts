@@ -3,7 +3,7 @@ import {
   deleteLocationById as deleteLocationByIdRepo,
   getLocationById,
   getLocationBySlug
-} from "../../repositories/core/location.repository";
+} from "../../repositories/core";
 import type { ImageStorageService } from "../../../shared/services/storage/image-storage.service";
 
 export class LocationMutationService {
