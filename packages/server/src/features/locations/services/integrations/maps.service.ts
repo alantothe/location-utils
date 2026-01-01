@@ -11,9 +11,9 @@ import {
   getLocationById,
   saveLocation,
   updateLocationById,
-} from "../../repositories/location.repository";
-import { getInstagramEmbedsByLocationId } from "../../repositories/instagram-embed.repository";
-import { getUploadsByLocationId } from "../../repositories/upload.repository";
+} from "../../repositories/core/location.repository";
+import { getInstagramEmbedsByLocationId } from "../../repositories/content/instagram-embed.repository";
+import { getUploadsByLocationId } from "../../repositories/content/upload.repository";
 import { transformLocationToResponse } from "../../utils/location-utils";
 import { validateCategory, validateCategoryWithDefault } from "../../utils/category-utils";
 import { TaxonomyService } from "../taxonomy/taxonomy.service";

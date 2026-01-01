@@ -1,5 +1,5 @@
 import { getDb } from "@server/shared/db/client";
-import type { InstagramEmbed } from "../models/location";
+import type { InstagramEmbed } from "../../models/location";
 
 function mapRow(row: any): InstagramEmbed {
   const { instagram: _ignored, images, original_image_urls, ...rest } = row;

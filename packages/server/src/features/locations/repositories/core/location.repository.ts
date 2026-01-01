@@ -1,7 +1,7 @@
 import { getDb } from "@server/shared/db/client";
-import type { Location } from "../models/location";
-import { isLocationInScope } from "../utils/location-utils";
-import { slugifyLocationPart } from "../services/geocoding/location-geocoding.helper";
+import type { Location } from "../../models/location";
+import { isLocationInScope } from "../../utils/location-utils";
+import { slugifyLocationPart } from "../../services/geocoding/location-geocoding.helper";
 
 function mapRow(row: any): Location {
   return {

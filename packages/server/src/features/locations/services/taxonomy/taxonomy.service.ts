@@ -6,7 +6,7 @@ import {
   rejectTaxonomyEntry,
   getPendingTaxonomyEntries,
   getLocationCountByTaxonomy
-} from "../../repositories/location-hierarchy.repository";
+} from "../../repositories/taxonomy/location-hierarchy.repository";
 import { parseLocationValue } from "../../utils/location-utils";
 import { NotFoundError, BadRequestError } from "@server/shared/core/errors/http-error";
 import type { LocationHierarchy } from "../../models/location";

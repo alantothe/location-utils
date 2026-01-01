@@ -1,5 +1,5 @@
 import { getDb } from "@server/shared/db/client";
-import type { Upload, LegacyUpload, ImageSetUpload } from "../models/location";
+import type { Upload, LegacyUpload, ImageSetUpload } from "../../models/location";
 
 /**
  * Maps a database row to the appropriate Upload type (legacy or imageset)

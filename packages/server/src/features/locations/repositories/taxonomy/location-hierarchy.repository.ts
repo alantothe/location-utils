@@ -1,5 +1,5 @@
 import { getDb } from "@server/shared/db/client";
-import type { LocationHierarchy, CountryData, CityData, NeighborhoodData } from "../models/location";
+import type { LocationHierarchy, CountryData, CityData, NeighborhoodData } from "../../models/location";
 import {
   filterCitiesByCountry,
   filterNeighborhoodsByCity,
@@ -7,7 +7,7 @@ import {
   isLocationInScope,
   buildNestedHierarchy,
   formatLocationName
-} from "../utils/location-utils";
+} from "../../utils/location-utils";
 
 function mapHierarchyRow(row: any): LocationHierarchy {
   return {

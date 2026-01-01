@@ -6,7 +6,7 @@ import {
   getCountriesNested,
   getCitiesNestedByCountry,
   getNeighborhoodsNested,
-} from "../repositories/location-hierarchy.repository";
+} from "../repositories/taxonomy/location-hierarchy.repository";
 
 export function getLocationHierarchy(c: Context) {
   const locations = getAllLocationHierarchy();
