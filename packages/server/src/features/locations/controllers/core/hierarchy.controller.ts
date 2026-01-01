@@ -2,7 +2,7 @@ import type { Context } from "hono";
 import { BadRequestError } from "@shared/errors/http-error";
 import {
   getAllLocationHierarchy,
-  getCountries,
+  getCountries as getCountriesRepo,
   getCountriesNested,
   getCitiesNestedByCountry,
   getNeighborhoodsNested,
@@ -19,7 +19,7 @@ export function getCountries(c: Context) {
 }
 
 export function getCountryNames(c: Context) {
-  const countries = getCountries();
+  const countries = getCountriesRepo();
   const countryNames = countries.map(country => country.country);
   return c.json(countryNames);
 }
