@@ -7,11 +7,9 @@ import type { Upload, LegacyUpload, ImageSetUpload } from "../../models/location
 interface UploadDbRow {
   id: number;
   location_id: number;
-  photographerCredit: string | null;
   images: string | null;
   imageMetadata: string | null;
   imageSets: string | null;
-  altTexts: string | null;
   uploadFormat: string;
   created_at: string;
 }
@@ -28,7 +26,6 @@ function mapRow(row: UploadDbRow): Upload {
     return {
       ...row,
       imageSets: row.imageSets ? JSON.parse(row.imageSets) : [],
-      photographerCredit: row.photographerCredit || null,
       format: 'imageset',
     } as ImageSetUpload;
   } else {
@@ -37,8 +34,6 @@ function mapRow(row: UploadDbRow): Upload {
       ...row,
       images: row.images ? JSON.parse(row.images) : [],
       imageMetadata: row.imageMetadata ? JSON.parse(row.imageMetadata) : [],
-      altTexts: row.altTexts ? JSON.parse(row.altTexts) : [],
-      photographerCredit: row.photographerCredit || null,
       format: 'legacy',
     } as LegacyUpload;
   }
@@ -60,15 +55,13 @@ export function saveUpload(upload: Upload): number | boolean {
         // Update existing
         const query = db.query(`
           UPDATE uploads
-          SET photographerCredit = $photographerCredit,
-              imageSets = $imageSets,
+          SET imageSets = $imageSets,
               uploadFormat = 'imageset'
           WHERE id = $id
         `);
 
         query.run({
           $id: imageSetUpload.id,
-          $photographerCredit: imageSetUpload.photographerCredit || null,
           $imageSets: imageSetUpload.imageSets ? JSON.stringify(imageSetUpload.imageSets) : null,
         });
 
@@ -76,13 +69,12 @@ export function saveUpload(upload: Upload): number | boolean {
       } else {
         // Insert new
         const query = db.query(`
-          INSERT INTO uploads (location_id, photographerCredit, imageSets, uploadFormat)
-          VALUES ($location_id, $photographerCredit, $imageSets, 'imageset')
+          INSERT INTO uploads (location_id, imageSets, uploadFormat)
+          VALUES ($location_id, $imageSets, 'imageset')
         `);
 
         query.run({
           $location_id: imageSetUpload.location_id,
-          $photographerCredit: imageSetUpload.photographerCredit || null,
           $imageSets: imageSetUpload.imageSets ? JSON.stringify(imageSetUpload.imageSets) : null,
         });
 
@@ -97,36 +89,30 @@ export function saveUpload(upload: Upload): number | boolean {
         // Update existing
         const query = db.query(`
           UPDATE uploads
-          SET photographerCredit = $photographerCredit,
-              images = $images,
+          SET images = $images,
               imageMetadata = $imageMetadata,
-              altTexts = $altTexts,
               uploadFormat = 'legacy'
           WHERE id = $id
         `);
 
         query.run({
           $id: legacyUpload.id,
-          $photographerCredit: legacyUpload.photographerCredit || null,
           $images: legacyUpload.images ? JSON.stringify(legacyUpload.images) : null,
           $imageMetadata: legacyUpload.imageMetadata ? JSON.stringify(legacyUpload.imageMetadata) : null,
-          $altTexts: legacyUpload.altTexts ? JSON.stringify(legacyUpload.altTexts) : null,
         });
 
         return legacyUpload.id;
       } else {
         // Insert new
         const query = db.query(`
-          INSERT INTO uploads (location_id, photographerCredit, images, imageMetadata, altTexts, uploadFormat)
-          VALUES ($location_id, $photographerCredit, $images, $imageMetadata, $altTexts, 'legacy')
+          INSERT INTO uploads (location_id, images, imageMetadata, uploadFormat)
+          VALUES ($location_id, $images, $imageMetadata, 'legacy')
         `);
 
         query.run({
           $location_id: legacyUpload.location_id,
-          $photographerCredit: legacyUpload.photographerCredit || null,
           $images: legacyUpload.images ? JSON.stringify(legacyUpload.images) : null,
           $imageMetadata: legacyUpload.imageMetadata ? JSON.stringify(legacyUpload.imageMetadata) : null,
-          $altTexts: legacyUpload.altTexts ? JSON.stringify(legacyUpload.altTexts) : null,
         });
 
         const result = db.query("SELECT last_insert_rowid() as id").get() as { id: number };
@@ -142,7 +128,7 @@ export function saveUpload(upload: Upload): number | boolean {
 export function getUploadById(id: number): Upload | null {
   const db = getDb();
   const query = db.query(`
-    SELECT id, location_id, photographerCredit, images, imageMetadata, imageSets, altTexts, uploadFormat, created_at
+    SELECT id, location_id, images, imageMetadata, imageSets, uploadFormat, created_at
     FROM uploads
     WHERE id = $id
   `);
@@ -154,7 +140,7 @@ export function getUploadById(id: number): Upload | null {
 export function getUploadsByLocationId(locationId: number): Upload[] {
   const db = getDb();
   const query = db.query(`
-    SELECT id, location_id, photographerCredit, images, imageMetadata, imageSets, altTexts, uploadFormat, created_at
+    SELECT id, location_id, images, imageMetadata, imageSets, uploadFormat, created_at
     FROM uploads
     WHERE location_id = $locationId
     ORDER BY created_at DESC
@@ -166,7 +152,7 @@ export function getUploadsByLocationId(locationId: number): Upload[] {
 export function getAllUploads(): Upload[] {
   const db = getDb();
   const query = db.query(`
-    SELECT id, location_id, photographerCredit, images, imageMetadata, imageSets, altTexts, uploadFormat, created_at
+    SELECT id, location_id, images, imageMetadata, imageSets, uploadFormat, created_at
     FROM uploads
     ORDER BY created_at DESC
   `);
@@ -187,7 +173,7 @@ export function getUploadsByLocationIds(locationIds: number[]): Map<number, Uplo
   const db = getDb();
   const placeholders = locationIds.map(() => '?').join(',');
   const query = db.query(`
-    SELECT id, location_id, photographerCredit, images, imageMetadata, imageSets, altTexts, uploadFormat, created_at
+    SELECT id, location_id, images, imageMetadata, imageSets, uploadFormat, created_at
     FROM uploads
     WHERE location_id IN (${placeholders})
     ORDER BY created_at DESC

@@ -136,12 +136,17 @@ export const locationsApi = {
     sourceFile: File,
     variantFiles: { type: ImageVariantType; file: File }[],
     photographerCredit?: string,
-    onProgress?: (percent: number) => void
+    onProgress?: (percent: number) => void,
+    altText?: string
   ): Promise<UploadResponse["entry"]> {
     const formData = new FormData();
 
     if (photographerCredit) {
       formData.append("photographerCredit", photographerCredit);
+    }
+
+    if (altText) {
+      formData.append("altText", altText);
     }
 
     // Append source file (currently only supporting 1 source per upload)
@@ -182,6 +187,21 @@ export const locationsApi = {
       xhr.open("POST", `${API_BASE_URL}${API_ENDPOINTS.ADD_UPLOAD_IMAGESET(locationId)}`);
       xhr.send(formData);
     });
+  },
+
+  /**
+   * Generate alt text for an image (preview before upload)
+   */
+  async generateAltText(imageFile: File): Promise<{ altText: string }> {
+    const formData = new FormData();
+    formData.append("image", imageFile);
+
+    const response = await apiPostFormData<{ altText: string }>(
+      API_ENDPOINTS.GENERATE_ALT_TEXT,
+      formData
+    );
+
+    return response;
   },
 
   /**

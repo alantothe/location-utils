@@ -21,17 +21,20 @@ export function useAddUploadImageSet(
       sourceFile,
       variantFiles,
       photographerCredit,
+      altText,
     }: {
       sourceFile: File;
       variantFiles: { type: ImageVariantType; file: File }[];
       photographerCredit?: string;
+      altText?: string;
     }) =>
       locationsApi.uploadImageSet(
         locationId,
         sourceFile,
         variantFiles,
         photographerCredit,
-        setUploadProgress
+        setUploadProgress,
+        altText
       ),
     onSuccess: (data) => {
       setUploadProgress(0);

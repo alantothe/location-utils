@@ -22,3 +22,4 @@ export {
   useApprovedTaxonomy,
   APPROVED_TAXONOMY_QUERY_KEY,
 } from "./useApprovedTaxonomy";
+export { useGenerateAltText } from "./useGenerateAltText";

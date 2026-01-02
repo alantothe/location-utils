@@ -5,8 +5,10 @@ import { FormInput } from "@client/shared/components/forms";
 import { Button } from "@client/components/ui/button";
 import { useToast } from "@client/shared/hooks/useToast";
 import { useAddUploadImageSet } from "@client/shared/services/api/hooks/useAddUploadImageSet";
+import { useGenerateAltText } from "@client/shared/services/api/hooks/useGenerateAltText";
 import { ImagePreviewGrid } from "../ui/ImagePreviewGrid";
 import { MultiVariantCropperModal } from "../modals/MultiVariantCropperModal";
+import { AltTextReviewModal } from "../modals/AltTextReviewModal";
 import { Upload } from "lucide-react";
 import {
   addUploadFilesSchema,
@@ -21,6 +23,7 @@ interface AddUploadFilesFormProps {
 interface ProcessedImageSet {
   sourceFile: File;
   variantFiles: { type: ImageVariantType; file: File }[];
+  altText?: string;
 }
 
 export function AddUploadFilesForm({ locationId }: AddUploadFilesFormProps) {
@@ -31,6 +34,12 @@ export function AddUploadFilesForm({ locationId }: AddUploadFilesFormProps) {
     isOpen: boolean;
     fileIndex: number | null;
   }>({ isOpen: false, fileIndex: null });
+  const [altTextModalState, setAltTextModalState] = useState<{
+    isOpen: boolean;
+    fileIndex: number | null;
+    aiGeneratedText: string;
+  }>({ isOpen: false, fileIndex: null, aiGeneratedText: "" });
+  const [confirmedAltTexts, setConfirmedAltTexts] = useState<(string | undefined)[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -38,6 +47,27 @@ export function AddUploadFilesForm({ locationId }: AddUploadFilesFormProps) {
     resolver: zodResolver(addUploadFilesSchema),
     defaultValues: {
       photographerCredit: "",
+    },
+  });
+
+  const { mutate: generateAltText, isPending: isGeneratingAltText } = useGenerateAltText({
+    onSuccess: (data) => {
+      if (altTextModalState.fileIndex !== null) {
+        setAltTextModalState(prev => ({
+          ...prev,
+          aiGeneratedText: data.altText
+        }));
+      }
+    },
+    onError: (error) => {
+      console.warn("Failed to generate alt text:", error);
+      // Continue with empty alt text
+      if (altTextModalState.fileIndex !== null) {
+        setAltTextModalState(prev => ({
+          ...prev,
+          aiGeneratedText: ""
+        }));
+      }
     },
   });
 
@@ -60,25 +90,41 @@ export function AddUploadFilesForm({ locationId }: AddUploadFilesFormProps) {
 
     setSelectedFiles((prev) => [...prev, ...fileArray]);
     setProcessedImageSets((prev) => [...prev, ...new Array(fileArray.length).fill(null)]);
+    setConfirmedAltTexts((prev) => [...prev, ...new Array(fileArray.length).fill(undefined)]);
 
-    // Auto-open first new file for cropping (multi-variant)
-    setCropModalState({ isOpen: true, fileIndex: startIndex });
+    // Auto-open first new file for alt text generation
+    setAltTextModalState({
+      isOpen: true,
+      fileIndex: startIndex,
+      aiGeneratedText: ""
+    });
+
+    // Generate alt text for the first file
+    if (fileArray.length > 0) {
+      generateAltText(fileArray[0]);
+    }
   }
 
   function handleRemoveFile(index: number) {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
     setProcessedImageSets((prev) => prev.filter((_, i) => i !== index));
+    setConfirmedAltTexts((prev) => prev.filter((_, i) => i !== index));
 
     // If modal was open for this file, close it
     if (cropModalState.fileIndex === index) {
       setCropModalState({ isOpen: false, fileIndex: null });
+    }
+    if (altTextModalState.fileIndex === index) {
+      setAltTextModalState({ isOpen: false, fileIndex: null, aiGeneratedText: "" });
     }
   }
 
   function handleReset() {
     setSelectedFiles([]);
     setProcessedImageSets([]);
+    setConfirmedAltTexts([]);
     setCropModalState({ isOpen: false, fileIndex: null });
+    setAltTextModalState({ isOpen: false, fileIndex: null, aiGeneratedText: "" });
     form.reset();
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -93,10 +139,14 @@ export function AddUploadFilesForm({ locationId }: AddUploadFilesFormProps) {
     const imageSet = processedImageSets[0];
     if (!imageSet) return;
 
+    // Get the alt text for this image set
+    const altText = confirmedAltTexts[0];
+
     mutate({
       sourceFile: imageSet.sourceFile,
       variantFiles: imageSet.variantFiles,
       photographerCredit: data.photographerCredit || undefined,
+      altText: altText,
     });
   }
 
@@ -131,6 +181,30 @@ export function AddUploadFilesForm({ locationId }: AddUploadFilesFormProps) {
       if (!processedImageSets[i]) return i;
     }
     return null;
+  }
+
+  // Alt text modal handlers
+  function handleAltTextConfirm(altText: string) {
+    if (altTextModalState.fileIndex === null) return;
+
+    // Store the confirmed alt text
+    setConfirmedAltTexts((prev) => {
+      const updated = [...prev];
+      updated[altTextModalState.fileIndex!] = altText;
+      return updated;
+    });
+
+    // Close alt text modal and open crop modal
+    setAltTextModalState({ isOpen: false, fileIndex: null, aiGeneratedText: "" });
+    setCropModalState({ isOpen: true, fileIndex: altTextModalState.fileIndex });
+  }
+
+  function handleAltTextCancel() {
+    // Remove the file and reset
+    if (altTextModalState.fileIndex !== null) {
+      handleRemoveFile(altTextModalState.fileIndex);
+    }
+    setAltTextModalState({ isOpen: false, fileIndex: null, aiGeneratedText: "" });
   }
 
   function areAllFilesCropped(): boolean {
@@ -256,6 +330,18 @@ export function AddUploadFilesForm({ locationId }: AddUploadFilesFormProps) {
           </Button>
         </div>
       </form>
+
+      {/* Alt text review modal */}
+      {altTextModalState.isOpen && altTextModalState.fileIndex !== null && (
+        <AltTextReviewModal
+          isOpen={altTextModalState.isOpen}
+          onClose={handleAltTextCancel}
+          onConfirm={handleAltTextConfirm}
+          imageFile={selectedFiles[altTextModalState.fileIndex]}
+          aiGeneratedAltText={altTextModalState.aiGeneratedText}
+          isLoading={isGeneratingAltText}
+        />
+      )}
 
       {/* Multi-variant crop modal */}
       {cropModalState.isOpen && cropModalState.fileIndex !== null && (

@@ -17,7 +17,7 @@ import {
 
   // Content
   postAddInstagram, deleteInstagramEmbed,
-  postAddUpload, postAddUploadImageSet, deleteUpload,
+  postAddUpload, postAddUploadImageSet, postGenerateAltText, deleteUpload,
   serveImage,
 
   // Admin
@@ -52,6 +52,7 @@ app.post(
   validateParams(addUploadParamsSchema),
   postAddUploadImageSet
 );
+app.post("/api/generate-alt-text", postGenerateAltText);
 app.delete(
   "/api/uploads/:id",
   validateParams(deleteUploadParamsSchema),

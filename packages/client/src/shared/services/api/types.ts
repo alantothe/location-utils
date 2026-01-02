@@ -58,7 +58,6 @@ export interface LegacyUpload {
 export interface ImageSetUpload {
   id?: number;
   location_id: number;
-  photographerCredit?: string | null;
   imageSets?: ImageSet[];
   created_at?: string;
   format: 'imageset';

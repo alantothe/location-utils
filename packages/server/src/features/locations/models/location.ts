@@ -100,7 +100,6 @@ export interface LegacyUpload {
 export interface ImageSetUpload {
   id?: number;
   location_id: number;  // FK to locations table
-  photographerCredit?: string | null;  // Optional photographer attribution
   imageSets?: import('@url-util/shared').ImageSet[];  // Array of ImageSet objects
   created_at?: string;
   format: 'imageset';  // Discriminator for union type

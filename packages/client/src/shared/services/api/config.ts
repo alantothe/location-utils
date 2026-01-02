@@ -24,6 +24,7 @@ export const API_ENDPOINTS = {
   DELETE_INSTAGRAM_EMBED: (embedId: number) => `/api/instagram-embeds/${embedId}`,
   ADD_UPLOAD: (locationId: number) => `/api/add-upload/${locationId}`,
   ADD_UPLOAD_IMAGESET: (locationId: number) => `/api/add-upload-imageset/${locationId}`,
+  GENERATE_ALT_TEXT: "/api/generate-alt-text",
   DELETE_UPLOAD: (uploadId: number) => `/api/uploads/${uploadId}`,
   CLEAR_DB: "/api/clear-db",
 

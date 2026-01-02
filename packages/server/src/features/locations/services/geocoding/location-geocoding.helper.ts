@@ -400,12 +400,10 @@ export function createFromUpload(
 }
 
 export function createFromImageSetUpload(
-  locationId: number,
-  photographerCredit?: string | null
+  locationId: number
 ): import('../models/location').ImageSetUpload {
   return {
     location_id: locationId,
-    photographerCredit: photographerCredit || null,
     imageSets: [],
     format: 'imageset',
   };

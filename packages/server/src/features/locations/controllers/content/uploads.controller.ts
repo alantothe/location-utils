@@ -89,6 +89,12 @@ export async function postAddUploadImageSet(c: Context) {
     ? (photographerCredit.trim() || null)
     : null;
 
+  // Parse alt text (optional - will generate if not provided)
+  const altText = formData.get("altText");
+  const altTextValue = typeof altText === "string"
+    ? (altText.trim() || null)
+    : null;
+
   // Parse source file (only expecting 1 source file for now)
   const sourceFile = formData.get("source_0");
   if (!sourceFile || !(sourceFile instanceof File)) {
@@ -145,8 +151,51 @@ export async function postAddUploadImageSet(c: Context) {
     locationId,
     sourceFile,
     variantFiles,
-    photographerCreditValue
+    photographerCreditValue,
+    altTextValue
   );
 
   return c.json(successResponse({ entry }));
+}
+
+/**
+ * Generate alt text for an image preview (before upload)
+ * POST /api/generate-alt-text
+ */
+export async function postGenerateAltText(c: Context) {
+  const formData = await c.req.formData();
+
+  // Parse image file
+  const imageFile = formData.get("image");
+  if (!imageFile || !(imageFile instanceof File)) {
+    throw new BadRequestError("Image file required");
+  }
+
+  // Validate image file
+  if (!ALLOWED_MIME_TYPES.includes(imageFile.type)) {
+    throw new BadRequestError(
+      `Invalid file type. Only JPEG, PNG, WebP, and GIF images are allowed.`
+    );
+  }
+
+  if (imageFile.size > MAX_FILE_SIZE) {
+    throw new BadRequestError(`File exceeds ${MAX_FILE_SIZE / 1024 / 1024}MB limit`);
+  }
+
+  // Generate alt text using the service
+  try {
+    const imageBuffer = await imageFile.arrayBuffer();
+    const fileExtension = imageFile.name.split('.').pop()?.toLowerCase() || 'jpg';
+
+    const altText = await container.uploadsService.generateAltText(
+      Buffer.from(imageBuffer),
+      imageFile.name,
+      fileExtension
+    );
+
+    return c.json(successResponse({ altText }));
+  } catch (error) {
+    console.error("Failed to generate alt text:", error);
+    throw new BadRequestError("Failed to generate alt text");
+  }
 }

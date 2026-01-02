@@ -108,6 +108,23 @@ export class UploadsService {
   }
 
   /**
+   * Generate alt text for an image (used for preview before upload)
+   * @param imageBuffer - Image buffer
+   * @param filename - Original filename
+   * @param format - Image format
+   * @returns Generated alt text
+   */
+  async generateAltText(imageBuffer: Buffer, filename: string, format?: string): Promise<string> {
+    try {
+      const altText = await this.altTextApi.generateAltText(imageBuffer, filename, format);
+      return altText;
+    } catch (error) {
+      console.warn(`Failed to generate alt text for image ${filename}:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Add a new multi-variant image set upload
    * @param locationId - Parent location ID
    * @param sourceFile - Original source image file
@@ -119,7 +136,8 @@ export class UploadsService {
     locationId: number,
     sourceFile: File,
     variantFiles: { type: ImageVariantType; file: File }[],
-    photographerCredit?: string | null
+    photographerCredit?: string | null,
+    altText?: string | null
   ): Promise<ImageSetUpload> {
     // 1. Validate inputs
     if (!locationId) {
@@ -152,7 +170,7 @@ export class UploadsService {
     // 2. Create timestamp-based ID and entry
     const timestamp = Date.now();
     const imageSetId = `${timestamp}`;
-    const entry = createFromImageSetUpload(locationId, photographerCredit);
+    const entry = createFromImageSetUpload(locationId);
 
     // Save entry to get database ID
     const savedId = saveUpload(entry);
@@ -184,18 +202,24 @@ export class UploadsService {
       throw new BadRequestError("Failed to save source file");
     }
 
-    // 4.5. Generate alt text for the source image (before processing variants)
+    // 4.5. Handle alt text for the source image (before processing variants)
     const relativeSourcePath = sourceFilePath.replace(process.cwd() + "/", "");
-    let altText = '';
+    let finalAltText = '';
 
-    try {
-      const sourceImageBuffer = await Bun.file(sourceFilePath).arrayBuffer();
-      // Extract format from filename for content-type detection
-      const fileExtension = this.getFileExtension(sourceFileName).toLowerCase();
-      altText = await this.altTextApi.generateAltText(Buffer.from(sourceImageBuffer), sourceFileName, fileExtension);
-    } catch (error) {
-      console.warn(`Failed to generate alt text for source image ${sourceFileName}:`, error);
-      // Continue without alt text
+    if (altText) {
+      // Use provided alt text from client
+      finalAltText = altText;
+    } else {
+      // Generate alt text automatically
+      try {
+        const sourceImageBuffer = await Bun.file(sourceFilePath).arrayBuffer();
+        // Extract format from filename for content-type detection
+        const fileExtension = this.getFileExtension(sourceFileName).toLowerCase();
+        finalAltText = await this.altTextApi.generateAltText(Buffer.from(sourceImageBuffer), sourceFileName, fileExtension);
+      } catch (error) {
+        console.warn(`Failed to generate alt text for source image ${sourceFileName}:`, error);
+        // Continue without alt text
+      }
     }
 
     // 5. Extract source metadata
@@ -249,7 +273,7 @@ export class UploadsService {
       },
       variants,
       photographerCredit: photographerCredit || null,
-      altText: altText || undefined,
+      altText: finalAltText || undefined,
       created_at: new Date().toISOString(),
     };
 

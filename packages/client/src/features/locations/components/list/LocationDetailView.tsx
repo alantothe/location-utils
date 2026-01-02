@@ -89,7 +89,7 @@ export function LocationDetailView({ locationDetail, isLoading, error, onCopyFie
           isOpen: true,
           images: variantPaths,
           currentIndex: startIndex, // Start with square variant (displayed in thumbnails)
-          photographerCredit: upload.photographerCredit || undefined,
+          photographerCredit: imageSet.photographerCredit || undefined,
           imageMetadata: imageSet.variants.map(variant => ({
             width: variant.dimensions.width,
             height: variant.dimensions.height,
@@ -277,11 +277,11 @@ export function LocationDetailView({ locationDetail, isLoading, error, onCopyFie
                         <div className="shrink-0 w-[120px] h-[120px] overflow-hidden rounded bg-gray-100 hover:ring-2 ring-blue-400 transition-all">
                           <img
                             src={imageUrl}
-                            alt={upload.photographerCredit || "Uploaded image"}
+                            alt={imageSet.altText || imageSet.photographerCredit || "Uploaded image"}
                             className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
                             loading="lazy"
                             onClick={() => handleImageSetClick(upload, setIdx)}
-                            title={upload.photographerCredit || "Click to view all variants"}
+                            title={imageSet.photographerCredit || "Click to view all variants"}
                           />
                         </div>
                         {/* Badge showing variant count */}

@@ -14,6 +14,7 @@ import { addPayloadSyncTracking } from "./migrations/add-payload-sync-tracking";
 import { addUploadMetadata } from "./migrations/add-upload-metadata";
 import { migrateToImageSets } from "./migrations/add-image-sets";
 import { addUploadAltTexts } from "./migrations/add-upload-alt-texts";
+import { removeUploadRedundantFields } from "./migrations/remove-upload-redundant-fields";
 
 let db: Database | null = null;
 
@@ -163,6 +164,9 @@ export function initDb() {
 
   // Run migration to add altTexts column to uploads table
   addUploadAltTexts();
+
+  // Run migration to remove redundant photographerCredit and altTexts columns from uploads table
+  removeUploadRedundantFields();
 }
 
 export function getDb(): Database {
