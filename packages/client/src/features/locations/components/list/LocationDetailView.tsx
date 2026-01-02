@@ -79,10 +79,16 @@ export function LocationDetailView({ locationDetail, isLoading, error, onCopyFie
       if (imageSet && imageSet.variants) {
         // Extract all variant paths for the lightbox
         const variantPaths = imageSet.variants.map((v: ImageVariant) => v.path);
+
+        // Find the index of the square variant (which is displayed in thumbnails)
+        // Variant order: ['thumbnail', 'square', 'wide', 'portrait', 'hero']
+        const squareVariantIndex = imageSet.variants.findIndex(v => v.type === 'square');
+        const startIndex = squareVariantIndex >= 0 ? squareVariantIndex : 0;
+
         setLightboxState({
           isOpen: true,
           images: variantPaths,
-          currentIndex: 0, // Start with first variant (thumbnail)
+          currentIndex: startIndex, // Start with square variant (displayed in thumbnails)
           photographerCredit: upload.photographerCredit || undefined,
           imageMetadata: imageSet.variants.map(variant => ({
             width: variant.dimensions.width,
