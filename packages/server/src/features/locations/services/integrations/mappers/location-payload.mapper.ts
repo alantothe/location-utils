@@ -72,3 +72,5 @@ export function mapLocationKeyToPayloadLocation(locationKey?: string): string | 
   const [country, city] = parts;
   return `${city}-${country}`.toLowerCase();
 }
+
+

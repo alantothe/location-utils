@@ -20,3 +20,5 @@ export interface UploadedImagesResult {
   galleryImageIds: string[];      // MediaAsset IDs for regular uploads
   instagramPostIds: string[];     // Instagram post IDs for embeds
 }
+
+
