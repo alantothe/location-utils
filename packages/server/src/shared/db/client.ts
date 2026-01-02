@@ -13,6 +13,7 @@ import { addTaxonomyCorrections } from "./migrations/add-taxonomy-corrections";
 import { addPayloadSyncTracking } from "./migrations/add-payload-sync-tracking";
 import { addUploadMetadata } from "./migrations/add-upload-metadata";
 import { migrateToImageSets } from "./migrations/add-image-sets";
+import { addUploadAltTexts } from "./migrations/add-upload-alt-texts";
 
 let db: Database | null = null;
 
@@ -159,6 +160,9 @@ export function initDb() {
 
   // Run migration to add imageSets and uploadFormat columns to uploads table
   migrateToImageSets();
+
+  // Run migration to add altTexts column to uploads table
+  addUploadAltTexts();
 }
 
 export function getDb(): Database {

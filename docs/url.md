@@ -2,6 +2,14 @@
 
 Base URL: `http://localhost:3000`
 
+## Servers Overview
+
+This application runs three servers in parallel:
+
+- **Main API Server** (Bun + Hono): `http://localhost:3000` - Location management and file uploads
+- **Frontend Client** (React + Vite): `http://localhost:5173` - Web interface
+- **Python Alt Text Service** (FastAPI): `http://localhost:8000` - AI-powered alt text generation for images
+
 ## Endpoints
 
 ### Location Management
@@ -30,6 +38,14 @@ Base URL: `http://localhost:3000`
 
 ### Static Files
 - `GET /api/images/*` - Serve uploaded images
+
+### Python Alt Text Service (Port 8000)
+
+The Python service provides AI-powered alt text generation using BLIP image captioning and GPT-2 refinement models.
+
+- `GET /test` - Health check endpoint
+- `POST /alt` - Generate alt text from image upload
+- `POST /caption` - Generate alt text with optional caption details
 
 ---
 
@@ -659,3 +675,111 @@ The system implements a two-phase taxonomy management workflow to ensure data qu
 4. **Usage**: Only approved taxonomy entries appear in the location hierarchy endpoints and can be used when filtering locations.
 
 This workflow ensures that the taxonomy remains clean and consistent while allowing for the discovery of new geographic areas.
+
+---
+
+## Python Alt Text Service Endpoints
+
+### GET /test
+
+Health check endpoint for the Python alt text service.
+
+**Base URL:** `http://localhost:8000`
+
+**Example:**
+```bash
+GET http://localhost:8000/test
+```
+
+**Response:**
+```json
+{
+  "status": "ok",
+  "message": "Server is working"
+}
+```
+
+---
+
+### POST /alt
+
+Generate SEO-optimized alt text from an uploaded image using AI models.
+
+**Base URL:** `http://localhost:8000`
+
+**Request Type:** `multipart/form-data`
+
+**Form Fields:**
+- `image` (required): Image file (JPEG, PNG, WebP, etc.)
+
+**Query Parameters:**
+- `raw` (optional, boolean): Return raw alt text without processing
+- `debug` (optional, boolean): Include debug information
+- `include_caption` (optional, boolean): Include the raw BLIP caption alongside the refined alt text
+
+**Examples:**
+```bash
+# Basic alt text generation
+curl -X POST http://localhost:8000/alt \
+  -F "image=@/path/to/image.jpg"
+
+# Include raw caption for comparison
+curl -X POST "http://localhost:8000/alt?include_caption=true" \
+  -F "image=@/path/to/image.jpg"
+```
+
+**Response (Success - 200):**
+```json
+{
+  "alt": "Beautiful coastal restaurant with ocean views and wooden dining tables"
+}
+```
+
+**Response (with include_caption=true):**
+```json
+{
+  "alt": "Beautiful coastal restaurant with ocean views and wooden dining tables",
+  "caption": "a restaurant with tables and chairs overlooking the ocean"
+}
+```
+
+**Response (Error - 400):**
+```json
+{
+  "detail": "file must be an image"
+}
+```
+
+**Notes:**
+- Uses BLIP (Salesforce/blip-image-captioning-base) for initial image captioning
+- Refines captions to SEO-optimized alt text (8-12 words) using DistilGPT-2
+- Optimized for Apple Silicon with MPS (Metal Performance Shaders) GPU acceleration
+- Models are loaded on startup for better performance
+- Falls back gracefully if GPU acceleration is unavailable
+
+---
+
+### POST /caption
+
+Legacy endpoint for alt text generation (similar to `/alt` but with different response format).
+
+**Base URL:** `http://localhost:8000`
+
+**Request Type:** `multipart/form-data`
+
+**Form Fields:**
+- `image` (required): Image file
+
+**Query Parameters:**
+- `include_caption` (optional, boolean): Include raw caption alongside alt text
+
+**Response:**
+```json
+{
+  "alt": "Beautiful coastal restaurant with ocean views and wooden dining tables",
+  "words": 8,
+  "caption": "a restaurant with tables and chairs overlooking the ocean"
+}
+```
+
+---

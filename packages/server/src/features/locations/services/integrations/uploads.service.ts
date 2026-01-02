@@ -184,6 +184,20 @@ export class UploadsService {
       throw new BadRequestError("Failed to save source file");
     }
 
+    // 4.5. Generate alt text for the source image (before processing variants)
+    const relativeSourcePath = sourceFilePath.replace(process.cwd() + "/", "");
+    let altText = '';
+
+    try {
+      const sourceImageBuffer = await Bun.file(sourceFilePath).arrayBuffer();
+      // Extract format from filename for content-type detection
+      const fileExtension = this.getFileExtension(sourceFileName).toLowerCase();
+      altText = await this.altTextApi.generateAltText(Buffer.from(sourceImageBuffer), sourceFileName, fileExtension);
+    } catch (error) {
+      console.warn(`Failed to generate alt text for source image ${sourceFileName}:`, error);
+      // Continue without alt text
+    }
+
     // 5. Extract source metadata
     const sourceRelativePath = sourceFilePath.replace(process.cwd() + "/", "");
     const sourceMeta = await this.extractMetadataFromFile(sourceRelativePath);
@@ -221,20 +235,7 @@ export class UploadsService {
       }
     }
 
-    // 7. Generate alt text for the source image
-    const relativeSourcePath = sourceFilePath.replace(process.cwd() + "/", "");
-    let altText = '';
-
-    try {
-      const sourceImageBuffer = await Bun.file(sourceFilePath).arrayBuffer();
-      const sourceFilename = sourceFileName;
-      altText = await this.altTextApi.generateAltText(Buffer.from(sourceImageBuffer), sourceFilename);
-    } catch (error) {
-      console.warn(`Failed to generate alt text for source image ${sourceFileName}:`, error);
-      // Continue without alt text
-    }
-
-    // 8. Construct ImageSet object
+    // 7. Construct ImageSet object
     const imageSet: ImageSet = {
       id: imageSetId,
       sourceImage: {

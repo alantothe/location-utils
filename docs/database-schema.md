@@ -116,6 +116,7 @@ packages/server/data/images/{location_name}/instagram/{timestamp}/image_{index}.
 | `photographerCredit` | TEXT | NULL | Attribution/credit for the photographer |
 | `images` | TEXT | NULL | JSON array of uploaded image paths |
 | `imageMetadata` | TEXT | NULL | JSON array of image metadata (dimensions, size, format) |
+| `altTexts` | TEXT | NULL | JSON array of AI-generated alt text for each image |
 | `created_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Record creation timestamp |
 
 ### Constraints
@@ -126,8 +127,10 @@ packages/server/data/images/{location_name}/instagram/{timestamp}/image_{index}.
 
 - `images` is stored as JSON string and parsed to array at repository level
 - `imageMetadata` is stored as JSON string containing `ImageMetadata[]` array
+- `altTexts` is stored as JSON string containing `string[]` array (parallel to images array)
 - Example: `[{"width": 1920, "height": 1080, "size": 2458624, "format": "jpeg"}]`
 - Example images: `["src/data/images/location_name/uploads/1234567890/image_0.jpg"]`
+- Example altTexts: `["A beautiful restaurant interior with wooden tables", "Outdoor dining area with city views"]`
 
 ### File Storage
 
@@ -287,6 +290,7 @@ The database auto-migrates on server start through these phases:
 10. **add-taxonomy-corrections.ts** - Creates taxonomy_corrections table and fixes known issues (e.g., "bras-lia" → "brasilia")
 11. **add-upload-metadata.ts** - Adds imageMetadata column to uploads table for storing image dimensions, size, and format
 12. **add-payload-sync-tracking.ts** - Creates payload_sync_state table for tracking sync status with Payload CMS
+13. **add-upload-alt-texts.ts** - Adds altTexts column to uploads table for storing AI-generated alt text for images
 
 ### Migration Logic
 

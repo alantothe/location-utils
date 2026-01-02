@@ -11,6 +11,7 @@ interface UploadDbRow {
   images: string | null;
   imageMetadata: string | null;
   imageSets: string | null;
+  altTexts: string | null;
   uploadFormat: string;
   created_at: string;
 }
@@ -36,6 +37,7 @@ function mapRow(row: UploadDbRow): Upload {
       ...row,
       images: row.images ? JSON.parse(row.images) : [],
       imageMetadata: row.imageMetadata ? JSON.parse(row.imageMetadata) : [],
+      altTexts: row.altTexts ? JSON.parse(row.altTexts) : [],
       photographerCredit: row.photographerCredit || null,
       format: 'legacy',
     } as LegacyUpload;
@@ -98,6 +100,7 @@ export function saveUpload(upload: Upload): number | boolean {
           SET photographerCredit = $photographerCredit,
               images = $images,
               imageMetadata = $imageMetadata,
+              altTexts = $altTexts,
               uploadFormat = 'legacy'
           WHERE id = $id
         `);
@@ -107,14 +110,15 @@ export function saveUpload(upload: Upload): number | boolean {
           $photographerCredit: legacyUpload.photographerCredit || null,
           $images: legacyUpload.images ? JSON.stringify(legacyUpload.images) : null,
           $imageMetadata: legacyUpload.imageMetadata ? JSON.stringify(legacyUpload.imageMetadata) : null,
+          $altTexts: legacyUpload.altTexts ? JSON.stringify(legacyUpload.altTexts) : null,
         });
 
         return legacyUpload.id;
       } else {
         // Insert new
         const query = db.query(`
-          INSERT INTO uploads (location_id, photographerCredit, images, imageMetadata, uploadFormat)
-          VALUES ($location_id, $photographerCredit, $images, $imageMetadata, 'legacy')
+          INSERT INTO uploads (location_id, photographerCredit, images, imageMetadata, altTexts, uploadFormat)
+          VALUES ($location_id, $photographerCredit, $images, $imageMetadata, $altTexts, 'legacy')
         `);
 
         query.run({
@@ -122,6 +126,7 @@ export function saveUpload(upload: Upload): number | boolean {
           $photographerCredit: legacyUpload.photographerCredit || null,
           $images: legacyUpload.images ? JSON.stringify(legacyUpload.images) : null,
           $imageMetadata: legacyUpload.imageMetadata ? JSON.stringify(legacyUpload.imageMetadata) : null,
+          $altTexts: legacyUpload.altTexts ? JSON.stringify(legacyUpload.altTexts) : null,
         });
 
         const result = db.query("SELECT last_insert_rowid() as id").get() as { id: number };
@@ -137,7 +142,7 @@ export function saveUpload(upload: Upload): number | boolean {
 export function getUploadById(id: number): Upload | null {
   const db = getDb();
   const query = db.query(`
-    SELECT id, location_id, photographerCredit, images, imageMetadata, imageSets, uploadFormat, created_at
+    SELECT id, location_id, photographerCredit, images, imageMetadata, imageSets, altTexts, uploadFormat, created_at
     FROM uploads
     WHERE id = $id
   `);
@@ -149,7 +154,7 @@ export function getUploadById(id: number): Upload | null {
 export function getUploadsByLocationId(locationId: number): Upload[] {
   const db = getDb();
   const query = db.query(`
-    SELECT id, location_id, photographerCredit, images, imageMetadata, imageSets, uploadFormat, created_at
+    SELECT id, location_id, photographerCredit, images, imageMetadata, imageSets, altTexts, uploadFormat, created_at
     FROM uploads
     WHERE location_id = $locationId
     ORDER BY created_at DESC
@@ -161,7 +166,7 @@ export function getUploadsByLocationId(locationId: number): Upload[] {
 export function getAllUploads(): Upload[] {
   const db = getDb();
   const query = db.query(`
-    SELECT id, location_id, photographerCredit, images, imageMetadata, imageSets, uploadFormat, created_at
+    SELECT id, location_id, photographerCredit, images, imageMetadata, imageSets, altTexts, uploadFormat, created_at
     FROM uploads
     ORDER BY created_at DESC
   `);
@@ -182,7 +187,7 @@ export function getUploadsByLocationIds(locationIds: number[]): Map<number, Uplo
   const db = getDb();
   const placeholders = locationIds.map(() => '?').join(',');
   const query = db.query(`
-    SELECT id, location_id, photographerCredit, images, imageMetadata, imageSets, uploadFormat, created_at
+    SELECT id, location_id, photographerCredit, images, imageMetadata, imageSets, altTexts, uploadFormat, created_at
     FROM uploads
     WHERE location_id IN (${placeholders})
     ORDER BY created_at DESC

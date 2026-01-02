@@ -37,3 +37,4 @@ trap cleanup SIGINT SIGTERM
 
 # Wait for either process to exit
 wait
+
