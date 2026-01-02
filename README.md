@@ -1,14 +1,15 @@
 # Location Manager with Instagram Integration
 
-A full-stack location management application with Google Maps integration and Instagram content enrichment. Built with Bun, Hono (backend), and Vite + React (frontend) in a monorepo structure.
+A full-stack location management application with Google Maps integration, Instagram content enrichment, and AI-powered alt text generation. Built with Bun, Hono (backend), Vite + React (frontend), and Python AI services in a monorepo structure.
 
 ## Features
 
 - **Full-Stack Application**: React frontend with Hono API backend
 - **Location Management**: Create and manage locations with Google Maps URLs
 - **Instagram Integration**: Add Instagram embeds to locations with automatic image downloading
+- **AI Alt Text Generation**: Automatic descriptive alt text for uploaded images using Python AI service
 - **Hierarchical Location System**: Organize locations by country → city → neighborhood
-- **Image Management**: Automatically downloads and organizes Instagram images
+- **Image Management**: Automatically downloads and organizes Instagram images with AI-generated alt text
 - **SQLite Persistence**: Normalized database schema with three tables
 - **API Proxy**: Vite dev server proxies API requests to backend
 
@@ -52,6 +53,22 @@ Create `packages/server/.env`:
 PORT=3000
 GOOGLE_MAPS_API_KEY=your_key_here
 RAPID_API_KEY=your_rapid_api_key
+ALT_TEXT_API_URL=http://localhost:8000
+```
+
+### Python AI Service
+
+The application includes an optional Python AI service for automatic alt text generation:
+
+```bash
+# Install Python dependencies
+bun run install:python-deps
+
+# Run Python service (port 8000)
+bun run dev:python
+
+# Test service connectivity
+bun run test:python
 ```
 
 ## Monorepo Structure
@@ -64,7 +81,8 @@ url-util/
 │   │   └── data/        # SQLite database & images
 │   ├── client/          # Frontend (Vite + React)
 │   │   └── src/         # React application
-│   └── shared/          # Shared types & utilities
+│   ├── shared/          # Shared types & utilities
+│   └── python-alt-text/ # Python AI alt text service
 ├── turbo.json          # Turborepo config
 └── package.json        # Workspace root
 ```
@@ -110,6 +128,11 @@ bun run test:locations    # Run location utils tests
 - TypeScript
 - Path aliases (@client/*, @shared/*)
 
+**AI Services:**
+- Python Flask API
+- BLIP image captioning model
+- Automatic alt text generation
+
 **Monorepo:**
 - Turborepo for task orchestration
 - Bun workspaces
@@ -119,9 +142,11 @@ bun run test:locations    # Run location utils tests
 
 - Server runs on port 3000
 - Client runs on port 5173 with API proxy
+- Python AI service runs on port 8000
 - Images stored in `packages/server/data/images/`
 - Database at `packages/server/data/location.sqlite`
 - Hot reload enabled for both frontend and backend
+- AI alt text generation runs asynchronously during uploads
 
 ## Documentation
 

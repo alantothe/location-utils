@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A location management full-stack application built with Bun, Hono (backend), and Vite + React (frontend). Manages locations with Google Maps URLs, Instagram embeds, and uploaded images. Uses SQLite for persistence with a normalized three-table schema (`locations`, `instagram_embeds`, `uploads`) plus a separate location hierarchy/taxonomy system.
+A location management full-stack application built with Bun, Hono (backend), Vite + React (frontend), and Python AI services. Manages locations with Google Maps URLs, Instagram embeds, and uploaded images with automatic AI-generated alt text. Uses SQLite for persistence with a normalized three-table schema (`locations`, `instagram_embeds`, `uploads`) plus a separate location hierarchy/taxonomy system.
 
-**Monorepo Structure:** Uses Turborepo to manage three packages: `server` (backend), `client` (frontend), and `shared` (common types/utils).
+**Monorepo Structure:** Uses Turborepo to manage four packages: `server` (backend), `client` (frontend), `shared` (common types/utils), and `python-alt-text` (AI alt text generation service).
 
 ## Development Commands
 
@@ -23,8 +23,8 @@ cd packages/server && bun run dev
 # Client only (port 5173)
 cd packages/client && bun run dev
 
-# Server only (port 3000)
-cd packages/server && bun run dev
+# Python AI alt text service only (port 8000)
+bun run dev:python
 
 # Client commands
 cd packages/client
@@ -42,7 +42,8 @@ bun run clean                # Clean build artifacts
 **Environment:**
 - Server runs on `PORT=3000` by default
 - Client runs on `PORT=5173` with API proxy to server
-- Set `GOOGLE_MAPS_API_KEY` and `RAPID_API_KEY` in `packages/server/.env` for full functionality
+- Python AI service runs on `http://localhost:8000`
+- Set `GOOGLE_MAPS_API_KEY`, `RAPID_API_KEY`, and `ALT_TEXT_API_URL` in `packages/server/.env` for full functionality
 
 ## Architecture
 
@@ -52,7 +53,8 @@ url-util/
 ├── packages/
 │   ├── server/          # Backend package (Bun + Hono)
 │   ├── client/          # Frontend package (Vite + React)
-│   └── shared/          # Shared types and utilities
+│   ├── shared/          # Shared types and utilities
+│   └── python-alt-text/ # Python AI alt text generation service
 ├── turbo.json          # Turborepo configuration
 └── package.json        # Workspace root
 ```
@@ -174,6 +176,38 @@ packages/server/src/shared/
 │   └── external/       # External API clients
 │       └── instagram-api.client.ts  # InstagramApiClient for RapidAPI
 └── utils/               # Country codes and other utilities
+```
+
+### Python AI Alt Text Service
+
+The `python-alt-text` package (`packages/python-alt-text`) provides AI-powered alt text generation for uploaded images:
+
+**Service Architecture:**
+- **Framework**: Flask + Python
+- **AI Model**: BLIP (Bootstrapping Language-Image Pre-training) for image captioning
+- **API**: RESTful endpoints served on port 8000
+- **Integration**: Called by Bun server during image upload processing
+
+**API Endpoints:**
+- `POST /alt` - Generate alt text for uploaded image (multipart/form-data)
+- `GET /test` - Health check endpoint
+
+**Integration Points:**
+- `AltTextApiClient` in `packages/server/src/shared/services/external/alt-text-api.client.ts`
+- Integrated in `UploadsService.addUploadFiles()` and `UploadsService.addImageSetUpload()`
+- Graceful fallback when service unavailable - uploads continue without alt text
+- Environment configurable via `ALT_TEXT_API_URL` in `packages/server/.env`
+
+**Development Commands:**
+```bash
+# Install Python dependencies
+bun run install:python-deps
+
+# Run Python service only
+bun run dev:python
+
+# Test Python service connectivity
+bun run test:python
 ```
 
 ### Data Storage

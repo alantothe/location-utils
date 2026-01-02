@@ -2,6 +2,7 @@ import type { Upload, ImageMetadata, ImageSetUpload } from "../../models/locatio
 import type { ImageVariantType, ImageSet, ImageVariant, VARIANT_SPECS } from "@url-util/shared";
 import { BadRequestError, NotFoundError } from "@shared/errors/http-error";
 import { ImageStorageService } from "@server/shared/services/storage/image-storage.service";
+import { AltTextApiClient } from "@server/shared/services/external/alt-text-api.client";
 import { getLocationById } from "../../repositories/core";
 import { saveUpload, getUploadById, deleteUploadById } from "../../repositories/content";
 import { createFromUpload, createFromImageSetUpload } from "../geocoding/location-geocoding.helper";
@@ -12,7 +13,8 @@ import { VARIANT_SPECS as VARIANT_SPECS_IMPORT } from "@url-util/shared";
 
 export class UploadsService {
   constructor(
-    private readonly imageStorage: ImageStorageService
+    private readonly imageStorage: ImageStorageService,
+    private readonly altTextApi: AltTextApiClient
   ) {}
 
   async addUploadFiles(
@@ -62,14 +64,28 @@ export class UploadsService {
     if (savedPaths.length > 0) {
       entry.images = savedPaths;
 
-      // Extract metadata for each saved image
+      // Extract metadata and generate alt text for each saved image
       const metadata: ImageMetadata[] = [];
+      const altTexts: string[] = [];
+
       for (const path of savedPaths) {
         // Construct absolute path - savedPaths are relative to cwd
         const fullPath = join(process.cwd(), path);
+        const filename = path.split('/').pop() || 'image';
+
         try {
           const meta = await extractImageMetadata(fullPath);
           metadata.push(meta);
+
+          // Generate alt text for the image
+          try {
+            const imageBuffer = await this.imageStorage.readImage(path);
+            const altText = await this.altTextApi.generateAltText(imageBuffer, filename);
+            altTexts.push(altText);
+          } catch (error) {
+            console.warn(`Failed to generate alt text for ${filename}:`, error);
+            altTexts.push(''); // Continue without alt text
+          }
         } catch (error) {
           console.error(`Failed to extract metadata for ${path}:`, error);
           // Push default metadata on error
@@ -79,10 +95,12 @@ export class UploadsService {
             size: 0,
             format: "unknown",
           });
+          altTexts.push(''); // No alt text on metadata extraction failure
         }
       }
 
       entry.imageMetadata = metadata;
+      entry.altTexts = altTexts;
       saveUpload(entry);
     }
 
@@ -203,9 +221,20 @@ export class UploadsService {
       }
     }
 
-    // 7. Construct ImageSet object
+    // 7. Generate alt text for the source image
     const relativeSourcePath = sourceFilePath.replace(process.cwd() + "/", "");
+    let altText = '';
 
+    try {
+      const sourceImageBuffer = await Bun.file(sourceFilePath).arrayBuffer();
+      const sourceFilename = sourceFileName;
+      altText = await this.altTextApi.generateAltText(Buffer.from(sourceImageBuffer), sourceFilename);
+    } catch (error) {
+      console.warn(`Failed to generate alt text for source image ${sourceFileName}:`, error);
+      // Continue without alt text
+    }
+
+    // 8. Construct ImageSet object
     const imageSet: ImageSet = {
       id: imageSetId,
       sourceImage: {
@@ -219,6 +248,7 @@ export class UploadsService {
       },
       variants,
       photographerCredit: photographerCredit || null,
+      altText: altText || undefined,
       created_at: new Date().toISOString(),
     };
 

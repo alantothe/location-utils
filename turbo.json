@@ -1,5 +1,6 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "ui": "tui",
   "tasks": {
     "dev": {
       "cache": false,
@@ -7,6 +8,15 @@
     },
     "build": {
       "outputs": ["dist/**"]
+    },
+    "install-deps": {
+      "cache": false
+    },
+    "test": {
+      "cache": false
+    },
+    "test:python": {
+      "cache": false
     },
     "test:locations": {
       "cache": false

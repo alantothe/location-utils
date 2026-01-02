@@ -8,6 +8,10 @@
   ],
   "scripts": {
     "dev": "turbo dev",
+    "dev:python": "turbo dev --filter=@url-util/python-alt-text",
+    "dev:all": "bun run scripts/dev-all.js",
+    "install:python-deps": "turbo install-deps --filter=@url-util/python-alt-text",
+    "test:python": "turbo test:python --filter=@url-util/python-alt-text",
     "build": "turbo build",
     "clean": "turbo clean"
   },

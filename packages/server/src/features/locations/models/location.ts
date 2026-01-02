@@ -88,6 +88,7 @@ export interface LegacyUpload {
   photographerCredit?: string | null;  // Optional photographer attribution
   images?: string[];
   imageMetadata?: ImageMetadata[];  // Metadata for each image (parallel array)
+  altTexts?: string[];  // AI-generated alt text for each image (parallel array)
   created_at?: string;
   format: 'legacy';  // Discriminator for union type
 }

@@ -58,6 +58,7 @@ export interface ImageSet {
   };
   variants: ImageVariant[];  // Array of 5 variants
   photographerCredit?: string | null;
+  altText?: string;  // AI-generated alt text for the image set
   created_at: string;
 }
 

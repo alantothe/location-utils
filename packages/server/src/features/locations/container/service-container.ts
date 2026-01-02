@@ -4,6 +4,7 @@ import { InstagramApiClient } from "@server/shared/services/external/instagram-a
 import { PayloadApiClient } from "@server/shared/services/external/payload-api.client";
 import { BigDataCloudClient } from "@server/shared/services/external/bigdatacloud-api.client";
 import { GeoapifyClient } from "@server/shared/services/external/geoapify-api.client";
+import { AltTextApiClient } from "@server/shared/services/external/alt-text-api.client";
 import {
   MapsService,
   InstagramService,
@@ -25,6 +26,7 @@ export class ServiceContainer {
   readonly payloadApi: PayloadApiClient;
   readonly bigDataCloudClient: BigDataCloudClient;
   readonly geoapifyClient: GeoapifyClient;
+  readonly altTextApiClient: AltTextApiClient;
   readonly districtExtractionService: DistrictExtractionService;
   readonly taxonomyService: TaxonomyService;
   readonly taxonomyCorrectionService: TaxonomyCorrectionService;
@@ -43,6 +45,7 @@ export class ServiceContainer {
     this.payloadApi = new PayloadApiClient(this.config);
     this.bigDataCloudClient = new BigDataCloudClient();
     this.geoapifyClient = new GeoapifyClient(this.config.GEOAPIFY_API_KEY || "");
+    this.altTextApiClient = new AltTextApiClient(this.config.altTextApiUrl);
     this.districtExtractionService = new DistrictExtractionService();
     this.taxonomyService = new TaxonomyService();
     this.taxonomyCorrectionService = new TaxonomyCorrectionService();
@@ -57,7 +60,7 @@ export class ServiceContainer {
       this.instagramApi,
       this.imageStorage
     );
-    this.uploadsService = new UploadsService(this.imageStorage);
+    this.uploadsService = new UploadsService(this.imageStorage, this.altTextApiClient);
     this.locationQueryService = new LocationQueryService();
     this.locationMutationService = new LocationMutationService(this.imageStorage);
     this.payloadSyncService = new PayloadSyncService(
