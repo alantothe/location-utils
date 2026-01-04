@@ -6,7 +6,6 @@ A full-stack location management application with Google Maps integration, Insta
 <h2 style="margin-bottom: 0.5rem;">Backend (API):</h2>
 <p>
 <img alt="TypeScript" src="https://img.shields.io/badge/typescript-007ACC?style=for-the-badge&logo=typescript&logoColor=white"/>
-<img alt="Bun" src="https://img.shields.io/badge/bun-00E0FF?style=for-the-badge&logo=bun&logoColor=white&color=333333"/>
 <img alt="Hono" src="https://img.shields.io/badge/hono-E36002?style=for-the-badge&logo=hono&logoColor=white"/>
 <img alt="SQLite" src="https://img.shields.io/badge/SQLite-07405E?style=for-the-badge&logo=sqlite&logoColor=white"/>
 
