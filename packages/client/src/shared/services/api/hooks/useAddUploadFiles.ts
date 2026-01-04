@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { locationsApi } from "../locations.api";
+import { LOCATIONS_BASIC_QUERY_KEY } from "./useLocationsBasic";
 import type { Upload } from "@client/shared/services/api/types";
 
 interface UseAddUploadFilesOptions {
@@ -22,6 +23,7 @@ export function useAddUploadFiles(
       setUploadProgress(0);
       queryClient.invalidateQueries({ queryKey: ["location-detail", locationId] });
       queryClient.invalidateQueries({ queryKey: ["locations"] });
+      queryClient.invalidateQueries({ queryKey: LOCATIONS_BASIC_QUERY_KEY });
       options?.onSuccess?.(data);
     },
     onError: (error) => {

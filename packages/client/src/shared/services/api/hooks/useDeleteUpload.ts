@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { locationsApi } from "../locations.api";
+import { LOCATIONS_BASIC_QUERY_KEY } from "./useLocationsBasic";
 
 interface UseDeleteUploadOptions {
   locationId: number;
@@ -15,6 +16,7 @@ export function useDeleteUpload(options: UseDeleteUploadOptions) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["location-detail", options.locationId] });
       queryClient.invalidateQueries({ queryKey: ["locations"] });
+      queryClient.invalidateQueries({ queryKey: LOCATIONS_BASIC_QUERY_KEY });
       options?.onSuccess?.();
     },
     onError: (error) => {

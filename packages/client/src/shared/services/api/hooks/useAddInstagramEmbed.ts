@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { locationsApi } from "../locations.api";
+import { LOCATIONS_BASIC_QUERY_KEY } from "./useLocationsBasic";
 import type { InstagramEmbed } from "@client/shared/services/api/types";
 
 interface UseAddInstagramEmbedOptions {
@@ -21,6 +22,7 @@ export function useAddInstagramEmbed(
       queryClient.invalidateQueries({ queryKey: ["location-detail", locationId] });
       // Also invalidate locations list in case it affects overview
       queryClient.invalidateQueries({ queryKey: ["locations"] });
+      queryClient.invalidateQueries({ queryKey: LOCATIONS_BASIC_QUERY_KEY });
       options?.onSuccess?.(data);
     },
     onError: (error) => {

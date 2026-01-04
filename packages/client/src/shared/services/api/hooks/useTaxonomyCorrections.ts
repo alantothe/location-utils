@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { taxonomyAdminApi } from "../taxonomy-admin.api";
 import type { TaxonomyCorrectionRequest } from "../types";
 import { PENDING_TAXONOMY_QUERY_KEY } from "./usePendingTaxonomy";
+import { LOCATIONS_BASIC_QUERY_KEY } from "./useLocationsBasic";
 
 /**
  * Query key for taxonomy corrections cache
@@ -48,6 +49,7 @@ export function useCreateTaxonomyCorrection() {
       queryClient.invalidateQueries({ queryKey: PENDING_TAXONOMY_QUERY_KEY });
       // Invalidate locations (we updated locationKeys)
       queryClient.invalidateQueries({ queryKey: ["locations"] });
+      queryClient.invalidateQueries({ queryKey: LOCATIONS_BASIC_QUERY_KEY });
     },
   });
 }

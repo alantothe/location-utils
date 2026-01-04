@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { taxonomyAdminApi } from "../taxonomy-admin.api";
 import { APPROVED_TAXONOMY_QUERY_KEY } from "./useApprovedTaxonomy";
+import { LOCATIONS_QUERY_KEY } from "./useLocations";
+import { LOCATIONS_BASIC_QUERY_KEY } from "./useLocationsBasic";
 
 export const PENDING_TAXONOMY_QUERY_KEY = ["admin", "taxonomy", "pending"] as const;
 
@@ -30,6 +32,9 @@ export function useApproveTaxonomy() {
       queryClient.invalidateQueries({ queryKey: APPROVED_TAXONOMY_QUERY_KEY });
       // Invalidate countries query to show newly approved neighborhood in filters
       queryClient.invalidateQueries({ queryKey: ["countries"] });
+      // Invalidate location queries to show newly approved locations on home page
+      queryClient.invalidateQueries({ queryKey: LOCATIONS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: LOCATIONS_BASIC_QUERY_KEY });
     },
   });
 }
