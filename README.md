@@ -3,20 +3,22 @@
 A full-stack location management application with Google Maps integration, Instagram content enrichment, and AI-powered alt text generation. Built with Bun, Hono (backend), Vite + React (frontend), and Python AI services in a monorepo structure.
 
 
-Backend (API):
-
+<h2 style="margin-bottom: 0.5rem;">Backend (API):</h2>
+<p>
 <img alt="Bun" src="https://img.shields.io/badge/bun-00E0FF?style=for-the-badge&logo=bun&logoColor=white&color=333333"/>
 <img alt="Hono" src="https://img.shields.io/badge/hono-E36002?style=for-the-badge&logo=hono&logoColor=white"/>
 <img alt="TypeScript" src="https://img.shields.io/badge/typescript-007ACC?style=for-the-badge&logo=typescript&logoColor=white"/>
 <img alt="SQLite" src="https://img.shields.io/badge/SQLite-07405E?style=for-the-badge&logo=sqlite&logoColor=white"/>
 
 
-Frontend (Client App):
-
+<h2 style="margin-bottom: 0.5rem;">Frontend (Client App):</h2>
+<p>
  <img alt="React" src="https://img.shields.io/badge/react-%2320232a.svg?style=for-the-badge&logo=react&logoColor=%2361DAFB"/>
 <img alt="Vite" src="https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=FFC71F"/>
 
-AI Microservice:
+
+<h2 style="margin-bottom: 0.5rem;">AI Microservice:</h2>
+<p>
 
 <img alt="Python" src="https://img.shields.io/badge/Python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54"/>
 <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi&logoColor=white"/>
