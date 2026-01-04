@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { mkdir, rm, readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
+import sharp from "sharp";
 
 export interface ImageStorageConfig {
   baseDir: string;
@@ -127,7 +128,7 @@ export class ImageStorageService {
   }
 
   /**
-   * Save uploaded File objects to filesystem
+   * Save uploaded File objects to filesystem, converting to WebP format
    */
   async saveUploadedFiles(
     files: File[],
@@ -149,10 +150,15 @@ export class ImageStorageService {
       }
 
       try {
-        const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-        const filename = `image_${i}.${ext}`;
+        // Convert to WebP using Sharp
+        const buffer = Buffer.from(await file.arrayBuffer());
+        const webpBuffer = await sharp(buffer)
+          .webp({ quality: 85 }) // Adjust quality as needed (0-100)
+          .toBuffer();
+
+        const filename = `image_${i}.webp`;
         const filePath = join(storagePath, filename);
-        await Bun.write(filePath, file);
+        await Bun.write(filePath, webpBuffer);
 
         const relativePath = filePath.replace(process.cwd() + "/", "");
         savedPaths.push(relativePath);

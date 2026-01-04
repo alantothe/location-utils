@@ -161,16 +161,6 @@ export function LocationDetailView({ locationDetail, isLoading, error, onCopyFie
           />
         )}
 
-        {/* Address field */}
-        {locationDetail.source?.address && (
-          <DetailField
-            label="Address"
-            value={locationDetail.source.address}
-            onClick={(e) => onCopyField(locationDetail.source!.address!, e)}
-            title="Click to copy address"
-            valueClassName="text-sm text-gray-900 leading-relaxed cursor-pointer underline underline-offset-2 decoration-gray-400 hover:decoration-gray-600 transition-colors"
-          />
-        )}
 
         {/* Phone number field */}
         {locationDetail.contact?.phoneNumber && (

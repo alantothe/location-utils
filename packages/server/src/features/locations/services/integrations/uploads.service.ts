@@ -152,8 +152,8 @@ export class UploadsService {
     // Ensure directory exists
     await this.imageStorage.ensureDirectoryExists(storagePath);
 
-    // 4. Save source file
-    const sourceFileName = `source_0.${this.getFileExtension(sourceFile.name)}`;
+    // 4. Save source file (always save as WebP)
+    const sourceFileName = `source_0.webp`;
     const sourceFilePath = join(storagePath, sourceFileName);
 
     try {
@@ -192,10 +192,9 @@ export class UploadsService {
 
     for (const { type, file } of variantFiles) {
       const spec = VARIANT_SPECS_IMPORT[type];
-      // Generate filename: {sanitized-location-name}_{variantType}.{extension}
+      // Generate filename: {sanitized-location-name}_{variantType}.webp (always WebP)
       const sanitizedName = sanitizeLocationName(parentLocation.name);
-      const extension = getFileExtension(file.name);
-      const variantFileName = `${sanitizedName}_${type}.${extension}`;
+      const variantFileName = `${sanitizedName}_${type}.webp`;
       const variantFilePath = join(storagePath, variantFileName);
 
       try {
@@ -257,12 +256,19 @@ export class UploadsService {
   }
 
   /**
-   * Save a File object to a specific path
+   * Save a File object to a specific path, converting to WebP format
    */
   private async saveFileToPath(file: File, filePath: string): Promise<void> {
+    const { default: sharp } = await import("sharp");
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-    await Bun.write(filePath, buffer);
+
+    // Convert to WebP using Sharp
+    const webpBuffer = await sharp(buffer)
+      .webp({ quality: 85 })
+      .toBuffer();
+
+    await Bun.write(filePath, webpBuffer);
   }
 
   /**
