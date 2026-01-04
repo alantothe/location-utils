@@ -1,19 +1,26 @@
+import { useMemo } from "react";
 import { useLocationsBasic } from "@client/shared/services/api";
 import { LocationList, LocationListEmpty } from "../components/list";
 import { LocationFilters } from "../components/filters";
 import { useLocationFilters } from "../hooks/useLocationFilters";
 import { useCountries } from "../hooks/useCountries";
-import { countryCodeToLocationKey } from "../utils/filter-utils";
+import { buildLocationKey } from "../utils/filter-utils";
 
 export function Home() {
   const filters = useLocationFilters();
   const { data: countries = [], isLoading: isLoadingCountries } = useCountries();
 
-  // Build API params - both category and locationKey are optional
-  const locationKey = filters.selectedCountry
-    ? countryCodeToLocationKey(filters.selectedCountry, countries)
-    : undefined;
+  // Build locationKey from country, city, and neighborhood selections
+  const locationKey = useMemo(() => {
+    return buildLocationKey(
+      countries,
+      filters.selectedCountry,
+      filters.selectedCity,
+      filters.selectedNeighborhood
+    );
+  }, [countries, filters.selectedCountry, filters.selectedCity, filters.selectedNeighborhood]);
 
+  // Build API params - both category and locationKey are optional
   const apiParams = {
     ...(filters.selectedCategory && { category: filters.selectedCategory }),
     ...(locationKey && { locationKey })
@@ -40,8 +47,12 @@ export function Home() {
 
       <LocationFilters
         selectedCountry={filters.selectedCountry}
+        selectedCity={filters.selectedCity}
+        selectedNeighborhood={filters.selectedNeighborhood}
         selectedCategory={filters.selectedCategory}
         onCountryChange={filters.setCountry}
+        onCityChange={filters.setCity}
+        onNeighborhoodChange={filters.setNeighborhood}
         onCategoryChange={filters.setCategory}
         onReset={filters.reset}
         countries={countries}
