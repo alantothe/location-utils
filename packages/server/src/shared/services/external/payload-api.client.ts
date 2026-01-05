@@ -226,7 +226,7 @@ export class PayloadApiClient {
     filename: string,
     altText: string,
     options?: {
-      location?: string;
+      locationRef?: string;
       photographerCredit?: string | null;
     }
   ): Promise<string> {
@@ -242,7 +242,16 @@ export class PayloadApiClient {
     formData.append("file", blob, filename);
 
     // Build _payload object with metadata (match working curl format exactly)
-    const payload: Record<string, string> = {};
+    const payload: Record<string, string | number> = {};
+
+    // Debug: Log what we received
+    console.log('🔍 [PAYLOAD CLIENT] uploadImage called with:', {
+      filename,
+      altText,
+      options_locationRef: options?.locationRef,
+      options_locationRef_type: typeof options?.locationRef,
+      options_photographerCredit: options?.photographerCredit,
+    });
 
     if (altText) {
       payload.alt_text = altText;
@@ -251,8 +260,13 @@ export class PayloadApiClient {
     // Always include photographer_credit to match working curl format (even if empty)
     payload.photographer_credit = options?.photographerCredit || "";
 
-    // Note: location is NOT included in _payload (doesn't match working curl format)
-    // Payload might use a different mechanism for location association
+    // Add locationRef inside _payload (as number, not string)
+    if (options?.locationRef) {
+      payload.locationRef = parseInt(options.locationRef, 10);
+      console.log('✅ [PAYLOAD CLIENT] Added locationRef to payload:', payload.locationRef);
+    } else {
+      console.warn('⚠️  [PAYLOAD CLIENT] No locationRef provided, skipping');
+    }
 
     // Always append _payload
     formData.append("_payload", JSON.stringify(payload));
@@ -261,6 +275,7 @@ export class PayloadApiClient {
     console.log('🔍 [PAYLOAD REQUEST] URL:', `${this.apiUrl}/api/media-assets`);
     console.log('🔍 [PAYLOAD REQUEST] filename:', filename);
     console.log('🔍 [PAYLOAD REQUEST] _payload:', JSON.stringify(payload, null, 2));
+    console.log('🔍 [PAYLOAD REQUEST] locationRef:', options?.locationRef || 'none');
 
     const response = await fetch(`${this.apiUrl}/api/media-assets`, {
       method: "POST",

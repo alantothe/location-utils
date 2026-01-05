@@ -58,12 +58,30 @@ export async function uploadLocationImages(
               console.log('🔍 [DEBUG] altText:', altText);
               console.log('🔍 [DEBUG] photographerCredit:', imageSet.photographerCredit);
 
+              // Debug: Log what we're about to send
+              console.log('🔍 [UPLOAD DEBUG] Location data:', {
+                locationId: location.id,
+                locationName: location.source.name,
+                payload_location_ref: location.payload_location_ref,
+                payload_location_ref_type: typeof location.payload_location_ref,
+                payload_location_ref_stringified: JSON.stringify(location.payload_location_ref),
+                will_send_locationRef: location.payload_location_ref || undefined,
+              });
+
+              // Warn if locationRef is missing (helps catch issues early)
+              if (!location.payload_location_ref) {
+                console.warn(
+                  `⚠️  Location ${location.id} (${location.source.name}) has no payload_location_ref. ` +
+                  `Media assets will be uploaded without location hierarchy link.`
+                );
+              }
+
               const mediaAssetId = await payloadClient.uploadImage(
                 imageBuffer,
                 filename,
                 altText,
                 {
-                  location: location.payload_location_ref || undefined,
+                  locationRef: location.payload_location_ref || undefined,
                   photographerCredit: imageSet.photographerCredit
                 }
               );
@@ -96,12 +114,28 @@ export async function uploadLocationImages(
 
           const altText = `Instagram post by ${embed.username} at ${location.title || location.source.name}`;
 
+          // Debug: Log what we're about to send (Instagram embed)
+          console.log('🔍 [UPLOAD DEBUG - INSTAGRAM] Location data:', {
+            locationId: location.id,
+            locationName: location.source.name,
+            payload_location_ref: location.payload_location_ref,
+            payload_location_ref_type: typeof location.payload_location_ref,
+            will_send_locationRef: location.payload_location_ref || undefined,
+          });
+
+          // Warn if locationRef is missing
+          if (!location.payload_location_ref) {
+            console.warn(
+              `⚠️  Instagram embed for location ${location.id} (${location.source.name}) has no payload_location_ref.`
+            );
+          }
+
           previewMediaAssetId = await payloadClient.uploadImage(
             imageBuffer,
             filename,
             altText,
             {
-              location: location.payload_location_ref || undefined
+              locationRef: location.payload_location_ref || undefined
             }
           );
 
