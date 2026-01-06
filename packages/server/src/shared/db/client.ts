@@ -18,6 +18,7 @@ import { removeUploadRedundantFields } from "./migrations/remove-upload-redundan
 import { removeUnusedUploadFields } from "./migrations/remove-unused-upload-fields";
 import { convertImageSetsToSingleObject } from "./migrations/convert-imagesets-to-single-object";
 import { addPayloadLocationRef } from "./migrations/add-payload-location-ref";
+import { addLocationUpdatedAt } from "./migrations/add-location-updated-at";
 
 let db: Database | null = null;
 
@@ -179,6 +180,9 @@ export function initDb() {
 
   // Run migration to add payload_location_ref column to locations table
   addPayloadLocationRef(database);
+
+  // Run migration to add updated_at column to locations table
+  addLocationUpdatedAt(database);
 }
 
 export function getDb(): Database {

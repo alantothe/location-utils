@@ -18,6 +18,7 @@ export interface SyncStatusResponse {
   title: string;
   category: Category;
   synced: boolean;
+  needsResync: boolean; // true if location has been modified since last successful sync
   syncState?: {
     id: number;
     location_id: number;

@@ -50,6 +50,7 @@ export interface Location {
   slug?: string | null;
   payload_location_ref?: string | null;  // Payload CMS location hierarchy ID
   created_at?: string;
+  updated_at?: string;
 }
 
 /**
@@ -151,6 +152,7 @@ export interface LocationResponse {
   uploads: Upload[];
   slug: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 /**

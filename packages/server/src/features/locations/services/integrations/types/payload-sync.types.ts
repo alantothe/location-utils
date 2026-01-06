@@ -13,6 +13,7 @@ export interface SyncStatusResponse {
   title: string;
   category: LocationCategory;
   synced: boolean;
+  needsResync: boolean; // true if location has been modified since last successful sync
   syncState?: PayloadSyncState;
 }
 

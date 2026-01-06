@@ -334,11 +334,18 @@ export function PayloadSync() {
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
                       <Button
                         onClick={() => handleSyncLocation(item.locationId)}
-                        disabled={syncingId === item.locationId}
+                        disabled={syncingId === item.locationId || (item.synced && !item.needsResync)}
                         variant="outline"
                         size="sm"
                       >
-                        {syncingId === item.locationId ? "Syncing..." : "Sync"}
+                        {syncingId === item.locationId
+                          ? "Syncing..."
+                          : !item.synced
+                            ? "Sync"
+                            : item.needsResync
+                              ? "Resync"
+                              : "Synced"
+                        }
                       </Button>
                     </td>
                   </tr>

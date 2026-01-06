@@ -194,6 +194,7 @@ export function transformLocationToResponse(location: LocationWithNested): Locat
     uploads: location.uploads || [],
     slug: location.slug || null,
     created_at: location.created_at || new Date().toISOString(),
+    updated_at: location.updated_at || location.created_at || new Date().toISOString(),
   };
 }
 

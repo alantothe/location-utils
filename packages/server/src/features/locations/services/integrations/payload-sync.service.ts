@@ -73,8 +73,19 @@ export class PayloadSyncService {
       // Map location data to Payload format (locationRef is guaranteed at this point)
       const payloadData = mapLocationToPayloadFormat(location, uploadedImages, locationRef);
 
-      // Upsert entry (update if exists by title, create if not)
-      const response = await this.payloadClient.upsertEntry(collection, payloadData);
+      // Check if this location was previously synced successfully
+      const existingSyncState = PayloadSyncRepo.getSyncState(locationId, collection);
+
+      let response: any;
+      if (existingSyncState && existingSyncState.sync_status === "success" && existingSyncState.payload_doc_id) {
+        // Update existing document using stored payload_doc_id
+        console.log(`✓ Updating existing Payload document: ${existingSyncState.payload_doc_id}`);
+        response = await this.payloadClient.updateEntry(collection, existingSyncState.payload_doc_id, payloadData);
+      } else {
+        // Create new document (first time sync or previous sync failed)
+        console.log(`✓ Creating new Payload document`);
+        response = await this.payloadClient.upsertEntry(collection, payloadData);
+      }
 
       // Save sync state
       PayloadSyncRepo.saveSyncState(
@@ -147,11 +158,15 @@ export class PayloadSyncService {
       const collection = mapCategoryToCollection(location.category);
       const syncState = PayloadSyncRepo.getSyncState(locationId, collection);
 
+      // Check if location has been modified since last successful sync
+      const needsResync = this.hasLocationChangedSinceLastSync(location, syncState);
+
       return [{
         locationId,
         title: location.title || location.source.name,
         category: location.category,
         synced: !!syncState && syncState.sync_status === "success",
+        needsResync,
         syncState: syncState || undefined,
       }];
     }
@@ -166,14 +181,40 @@ export class PayloadSyncService {
       syncStateMap.set(state.location_id, state);
     });
 
-    return allLocations.map(location => ({
-      locationId: location.id!,
-      title: location.title || location.source.name,
-      category: location.category,
-      synced: syncStateMap.has(location.id!) &&
-              syncStateMap.get(location.id!)?.sync_status === "success",
-      syncState: syncStateMap.get(location.id!),
-    }));
+    return allLocations.map(location => {
+      const syncState = syncStateMap.get(location.id!);
+      const needsResync = this.hasLocationChangedSinceLastSync(location, syncState);
+
+      return {
+        locationId: location.id!,
+        title: location.title || location.source.name,
+        category: location.category,
+        synced: !!syncState && syncState.sync_status === "success",
+        needsResync,
+        syncState,
+      };
+    });
+  }
+
+  /**
+   * Helper: Check if location has been modified since last successful sync
+   */
+  private hasLocationChangedSinceLastSync(location: any, syncState: any): boolean {
+    // If there's no sync state or no successful sync, it doesn't need resync (needs initial sync)
+    if (!syncState || syncState.sync_status !== "success") {
+      return false;
+    }
+
+    // If location has no updated_at, assume it hasn't changed
+    if (!location.updated_at) {
+      return false;
+    }
+
+    // Compare timestamps
+    const lastModified = new Date(location.updated_at);
+    const lastSynced = new Date(syncState.last_synced_at);
+
+    return lastModified > lastSynced;
   }
 
   /**
