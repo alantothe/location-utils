@@ -73,19 +73,22 @@ export class PayloadSyncService {
       // Map location data to Payload format (locationRef is guaranteed at this point)
       const payloadData = mapLocationToPayloadFormat(location, uploadedImages, locationRef);
 
-      // Check if this location was previously synced successfully
+      // Check if this location has a stored Payload document ID
       const existingSyncState = PayloadSyncRepo.getSyncState(locationId, collection);
 
       let response: any;
-      if (existingSyncState && existingSyncState.sync_status === "success" && existingSyncState.payload_doc_id) {
-        // Update existing document using stored payload_doc_id
+      if (existingSyncState?.payload_doc_id) {
+        // Update existing document using stored payload_doc_id (regardless of previous sync status)
         console.log(`✓ Updating existing Payload document: ${existingSyncState.payload_doc_id}`);
         response = await this.payloadClient.updateEntry(collection, existingSyncState.payload_doc_id, payloadData);
       } else {
-        // Create new document (first time sync or previous sync failed)
+        // Create new document (first time sync)
         console.log(`✓ Creating new Payload document`);
-        response = await this.payloadClient.upsertEntry(collection, payloadData);
+        response = await this.payloadClient.createEntry(collection, payloadData);
       }
+
+      // Log and save the Payload document ID
+      console.log(`📄 Payload document ID: ${response.doc.id} (location ${locationId})`);
 
       // Save sync state
       PayloadSyncRepo.saveSyncState(
