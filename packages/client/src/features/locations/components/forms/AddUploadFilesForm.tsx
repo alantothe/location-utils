@@ -234,6 +234,10 @@ export function AddUploadFilesForm({ locationId }: AddUploadFilesFormProps) {
     );
   }
 
+  function hasCroppedImages(): boolean {
+    return processedImageSets.some((set) => set !== null);
+  }
+
   // Drag and drop handlers
   function handleDragOver(e: React.DragEvent) {
     e.preventDefault();
@@ -253,44 +257,46 @@ export function AddUploadFilesForm({ locationId }: AddUploadFilesFormProps) {
   }
 
   return (
-    <div className="border rounded-lg p-4 bg-muted/50 space-y-3">
+    <div className="border rounded-lg p-4 bg-muted/50 space-y-3 min-h-[368px]">
       <h4 className="text-sm font-semibold text-foreground">Add Images</h4>
 
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-3">
-        {/* Drag and drop zone */}
-        <div
-          className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
-            isDragging ? "border-blue-500 bg-blue-50" : "border-gray-300"
-          }`}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-        >
-          <Upload className="mx-auto h-8 w-8 text-gray-400 mb-2" />
-          <p className="text-sm text-gray-600 mb-2">
-            Drag and drop images here, or click to select
-          </p>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            onChange={(e) => handleFileSelect(e.target.files)}
-            className="hidden"
-          />
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isPending}
+        {/* Drag and drop zone - only show when no cropped images exist */}
+        {!hasCroppedImages() && (
+          <div
+            className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+              isDragging ? "border-blue-500 bg-blue-50" : "border-gray-300"
+            }`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
           >
-            Choose Files
-          </Button>
-          <p className="text-xs text-gray-500 mt-2">
-            {selectedFiles.length} file(s) selected
-          </p>
-        </div>
+            <Upload className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+            <p className="text-sm text-gray-600 mb-2">
+              Drag and drop images here, or click to select
+            </p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={(e) => handleFileSelect(e.target.files)}
+              className="hidden"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isPending}
+            >
+              Choose Files
+            </Button>
+            <p className="text-xs text-gray-500 mt-2">
+              {selectedFiles.length} file(s) selected
+            </p>
+          </div>
+        )}
 
         {/* Image preview grid */}
         {selectedFiles.length > 0 && (

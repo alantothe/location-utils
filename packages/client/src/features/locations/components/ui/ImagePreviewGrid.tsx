@@ -20,7 +20,7 @@ export function ImagePreviewGrid({ files, onRemove, onCrop, croppedIndicators }:
             <img
               src={previewUrl}
               alt={file.name}
-              className="w-full h-30 object-cover rounded"
+              className="w-full h-33 object-cover rounded"
               onLoad={() => URL.revokeObjectURL(previewUrl)}
             />
 
