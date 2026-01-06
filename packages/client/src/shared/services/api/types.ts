@@ -146,7 +146,6 @@ export interface UpdateMapsRequest {
   title?: string;
   category?: Category;
   locationKey?: string;
-  contactAddress?: string;
   countryCode?: string;
   phoneNumber?: string;
   website?: string;

@@ -22,7 +22,6 @@ export function EditLocation() {
     defaultValues: {
       title: "",
       category: undefined,
-      contactAddress: "",
       phoneNumber: "",
       website: "",
     },
@@ -34,7 +33,6 @@ export function EditLocation() {
       form.reset({
         title: location.title || "",
         category: location.category,
-        contactAddress: location.contact.contactAddress || "",
         phoneNumber: location.contact.phoneNumber || "",
         website: location.contact.website || "",
       });
@@ -114,14 +112,6 @@ export function EditLocation() {
           <SelectItem value="attractions">Attractions</SelectItem>
           <SelectItem value="nightlife">Nightlife</SelectItem>
         </FormSelect>
-
-        <FormInput
-          name="contactAddress"
-          label="Contact Address"
-          control={form.control}
-          placeholder="Contact address (optional)"
-        />
-
 
         <FormInput
           name="phoneNumber"

@@ -9,7 +9,7 @@ import {
 import { Button } from "@client/components/ui/button";
 import { Textarea } from "@client/components/ui/textarea";
 import { Label } from "@client/components/ui/label";
-import { Sparkles, Check, Edit } from "lucide-react";
+import { Sparkles, Check, Edit, Loader } from "lucide-react";
 
 interface AltTextReviewModalProps {
   isOpen: boolean;
@@ -86,14 +86,21 @@ export function AltTextReviewModal({
               <Edit className="w-4 h-4" />
               Alt Text (for accessibility and SEO)
             </Label>
-            <Textarea
-              id="alt-text"
-              value={altText}
-              onChange={(e) => setAltText(e.target.value)}
-              placeholder="Describe what you see in this image..."
-              className="min-h-20 resize-none"
-              disabled={isLoading}
-            />
+            <div className="relative">
+              <Textarea
+                id="alt-text"
+                value={altText}
+                onChange={(e) => setAltText(e.target.value)}
+                placeholder="Describe what you see in this image..."
+                className="min-h-20 resize-none"
+                disabled={isLoading}
+              />
+              {isLoading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-muted/50 rounded-md">
+                  <Loader className="w-5 h-5 animate-spin text-muted-foreground" />
+                </div>
+              )}
+            </div>
             <div className="flex justify-between items-center text-sm text-muted-foreground">
               <span>
                 {aiGeneratedAltText && (
