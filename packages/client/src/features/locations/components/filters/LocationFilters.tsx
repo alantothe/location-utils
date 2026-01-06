@@ -57,9 +57,6 @@ export function LocationFilters({
 
       {/* City Select */}
       <div>
-        <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 500, marginBottom: "0.5rem" }}>
-          City
-        </label>
         <Select
           value={selectedCity ?? ""}
           onValueChange={onCityChange}
@@ -80,9 +77,6 @@ export function LocationFilters({
 
       {/* Neighborhood Select */}
       <div>
-        <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 500, marginBottom: "0.5rem" }}>
-          District/Neighborhood
-        </label>
         <Select
           value={selectedNeighborhood ?? ""}
           onValueChange={onNeighborhoodChange}
