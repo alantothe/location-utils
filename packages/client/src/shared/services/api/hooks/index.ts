@@ -24,3 +24,4 @@ export {
 } from "./useApprovedTaxonomy";
 export { useGenerateAltText } from "./useGenerateAltText";
 export { useClearDatabase } from "./useClearDatabase";
+export { useLocationTypes } from "./useLocationTypes";

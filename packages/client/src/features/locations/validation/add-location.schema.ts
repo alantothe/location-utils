@@ -18,6 +18,7 @@ export const addLocationSchema = z.object({
     .min(1, "Address is required")
     .max(500, "Address must be less than 500 characters"),
   category: locationCategorySchema,
+  type: z.string().optional().or(z.literal("")).transform(val => val === "" ? undefined : val),
 });
 
 export const confirmLocationSchema = z.object({

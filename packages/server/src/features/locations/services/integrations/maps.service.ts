@@ -39,7 +39,7 @@ export class MapsService {
     const category = validateCategory(payload.category);
 
     const apiKey = this.config.hasGoogleMapsKey() ? this.config.GOOGLE_MAPS_API_KEY : undefined;
-    const entry = await createFromMaps(payload.name, payload.address, apiKey, category);
+    const entry = await createFromMaps(payload.name, payload.address, apiKey, category, payload.type);
 
     // Apply corrections and ensure taxonomy entry exists (create as pending if new)
     if (entry.locationKey) {
@@ -84,6 +84,8 @@ export class MapsService {
 
 
   async updateMapsLocationById(id: number, updates: PatchMapsDto): Promise<LocationResponse> {
+    console.log(`📝 [UPDATE] Location ${id} received updates:`, updates);
+
     const currentLocation = getLocationByIdForUpdate(id);
     if (!currentLocation) {
       throw new NotFoundError("Location", id);
@@ -103,6 +105,7 @@ export class MapsService {
     const updateData = {
       ...(updates.title !== undefined && { title: updates.title }),
       ...(category !== undefined && { category }),
+      ...(updates.type !== undefined && { type: updates.type }),
       ...(updates.locationKey !== undefined && { locationKey: updates.locationKey }),
       ...(updates.contactAddress !== undefined && { contactAddress: updates.contactAddress }),
       ...(updates.countryCode !== undefined && { countryCode: updates.countryCode }),
@@ -120,6 +123,8 @@ export class MapsService {
     if (!updatedLocation) {
       throw new NotFoundError("Location", id);
     }
+
+    console.log(`✅ [UPDATE] Location ${id} updated successfully. New type:`, updatedLocation.type);
 
     // Fetch nested data
     const instagramEmbeds = getInstagramEmbedsByLocationId(id);

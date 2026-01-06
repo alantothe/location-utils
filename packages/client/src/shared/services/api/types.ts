@@ -59,6 +59,7 @@ export interface Location {
   id: number;
   title: string | null;
   category: Category;
+  type: string | null;
   locationKey: string;
   contact: ContactInfo;
   coordinates: Coordinates;
@@ -67,6 +68,7 @@ export interface Location {
   uploads: Upload[];
   slug: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 export interface LocationsResponse {
@@ -104,6 +106,7 @@ export interface LocationResponse {
   id: number;
   title: string | null;
   category: Category;
+  type: string | null;
   locationKey: string | null;
   district: string | null;
   contact: LocationContact;
@@ -113,6 +116,7 @@ export interface LocationResponse {
   uploads: Upload[];
   slug: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 export interface LocationsBasicResponse {
@@ -135,6 +139,7 @@ export interface CreateMapsRequest {
   name: string;
   address: string;
   category: Category;
+  type?: string;
   locationKey?: string;
   title?: string;
   contactAddress?: string;
@@ -146,6 +151,7 @@ export interface CreateMapsRequest {
 export interface UpdateMapsRequest {
   title?: string;
   category?: Category;
+  type?: string;
   locationKey?: string;
   countryCode?: string;
   phoneNumber?: string;

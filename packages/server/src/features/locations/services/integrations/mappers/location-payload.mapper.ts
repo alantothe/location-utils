@@ -13,7 +13,6 @@ export function mapLocationToPayloadFormat(
 ) {
   return {
     title: location.title || location.source.name,
-    type: mapCategoryToType(location.category),
     locationRef, // Always included - required by Payload
     gallery: uploadedImages.galleryImageIds.map(id => ({
       image: id,
@@ -30,6 +29,7 @@ export function mapLocationToPayloadFormat(
     latitude: location.coordinates.lat || undefined,
     longitude: location.coordinates.lng || undefined,
     status: "published" as const,
+    ...(location.type ? { type: location.type } : {}),
   };
 }
 
@@ -41,21 +41,6 @@ export function mapCategoryToCollection(
 ): "dining" | "accommodations" | "attractions" | "nightlife" {
   // Direct mapping - categories match collection names
   return category as "dining" | "accommodations" | "attractions" | "nightlife";
-}
-
-/**
- * Map category to Payload type field
- * (Simplified - could be expanded with more specific mappings)
- */
-export function mapCategoryToType(category: LocationCategory): string {
-  const typeMap: Record<LocationCategory, string> = {
-    dining: "restaurant",
-    accommodations: "hotel",
-    attractions: "museum",
-    nightlife: "nightclub",
-  };
-
-  return typeMap[category] || "other";
 }
 
 /**
@@ -72,7 +57,3 @@ export function mapLocationKeyToPayloadLocation(locationKey?: string): string | 
   const [country, city] = parts;
   return `${city}-${country}`.toLowerCase();
 }
-
-
-
-

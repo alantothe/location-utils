@@ -263,7 +263,8 @@ export async function createFromMaps(
   name: string,
   address: string,
   apiKey?: string,
-  category: LocationCategory = "attractions"
+  category: LocationCategory = "attractions",
+  type?: string
 ): Promise<Location> {
   const url = generateGoogleMapsUrl(name, address);
   const entry: Location = {
@@ -274,6 +275,7 @@ export async function createFromMaps(
     lat: null,
     lng: null,
     category,
+    type: type || null,
     locationKey: null,
   };
 

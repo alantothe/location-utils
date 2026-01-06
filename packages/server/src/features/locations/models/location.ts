@@ -41,6 +41,7 @@ export interface Location {
   lat?: number | null;
   lng?: number | null;
   category?: LocationCategory;
+  type?: string | null;
   locationKey?: string | null;
   district?: string | null;
   contactAddress?: string | null;
@@ -109,6 +110,7 @@ export interface CreateMapsRequest {
   name: string;
   address: string;
   category: LocationCategory;
+  type?: string;
 }
 
 
@@ -142,6 +144,7 @@ export interface LocationResponse {
   id: number;
   title: string | null;
   category: LocationCategory;
+  type: string | null;
   locationKey: string | null;
   district: string | null;
   payload_location_ref: string | null;

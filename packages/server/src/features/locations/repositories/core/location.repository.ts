@@ -22,14 +22,15 @@ export function saveLocation(location: Location): number | boolean {
   try {
     const db = getDb();
     const query = db.query(`
-      INSERT INTO locations (name, title, address, url, lat, lng, category, locationKey, district, contactAddress, countryCode, phoneNumber, website, slug, payload_location_ref, updated_at)
-      VALUES ($name, $title, $address, $url, $lat, $lng, $category, $locationKey, $district, $contactAddress, $countryCode, $phoneNumber, $website, $slug, $payload_location_ref, CURRENT_TIMESTAMP)
+      INSERT INTO locations (name, title, address, url, lat, lng, category, type, locationKey, district, contactAddress, countryCode, phoneNumber, website, slug, payload_location_ref, updated_at)
+      VALUES ($name, $title, $address, $url, $lat, $lng, $category, $type, $locationKey, $district, $contactAddress, $countryCode, $phoneNumber, $website, $slug, $payload_location_ref, CURRENT_TIMESTAMP)
       ON CONFLICT(name, address) DO UPDATE SET
         title = excluded.title,
         url = excluded.url,
         lat = excluded.lat,
         lng = excluded.lng,
         category = excluded.category,
+        type = excluded.type,
         locationKey = excluded.locationKey,
         district = excluded.district,
         contactAddress = excluded.contactAddress,
@@ -48,6 +49,7 @@ export function saveLocation(location: Location): number | boolean {
       $lat: location.lat || null,
       $lng: location.lng || null,
       $category: location.category || "attractions",
+      $type: (location as any).type || null,
       $locationKey: location.locationKey || null,
       $district: location.district || null,
       $contactAddress: location.contactAddress || null,
@@ -97,6 +99,10 @@ export function updateLocationById(id: number, updates: Partial<Location>): bool
     if (updates.category !== undefined) {
       setClause.push("category = $category");
       params.$category = updates.category;
+    }
+    if (updates.type !== undefined) {
+      setClause.push("type = $type");
+      params.$type = updates.type;
     }
     if (updates.url !== undefined) {
       setClause.push("url = $url");
@@ -179,7 +185,7 @@ export function getAllLocations(): Location[] {
   const db = getDb();
   const query = db.query(`
     SELECT DISTINCT l.id, l.name, l.title, l.address, l.url, l.lat, l.lng,
-           l.category, l.locationKey, l.district, l.contactAddress,
+           l.category, l.type, l.locationKey, l.district, l.contactAddress,
            l.countryCode, l.phoneNumber, l.website, l.slug, l.payload_location_ref, l.created_at, l.updated_at
     FROM locations l
     LEFT JOIN location_taxonomy t ON l.locationKey = t.locationKey
@@ -199,7 +205,7 @@ export function getLocationsByCategory(category: string): Location[] {
   const db = getDb();
   const query = db.query(`
     SELECT DISTINCT l.id, l.name, l.title, l.address, l.url, l.lat, l.lng,
-           l.category, l.locationKey, l.district, l.contactAddress,
+           l.category, l.type, l.locationKey, l.district, l.contactAddress,
            l.countryCode, l.phoneNumber, l.website, l.slug, l.payload_location_ref, l.created_at, l.updated_at
     FROM locations l
     LEFT JOIN location_taxonomy t ON l.locationKey = t.locationKey
@@ -220,7 +226,7 @@ export function getLocationById(id: number): Location | null {
   const db = getDb();
   const query = db.query(`
     SELECT DISTINCT l.id, l.name, l.title, l.address, l.url, l.lat, l.lng,
-           l.category, l.locationKey, l.district, l.contactAddress,
+           l.category, l.type, l.locationKey, l.district, l.contactAddress,
            l.countryCode, l.phoneNumber, l.website, l.slug, l.payload_location_ref, l.created_at, l.updated_at
     FROM locations l
     LEFT JOIN location_taxonomy t ON l.locationKey = t.locationKey
@@ -238,7 +244,7 @@ export function getLocationByIdForUpdate(id: number): Location | null {
   const db = getDb();
   const query = db.query(`
     SELECT DISTINCT l.id, l.name, l.title, l.address, l.url, l.lat, l.lng,
-           l.category, l.locationKey, l.district, l.contactAddress,
+           l.category, l.type, l.locationKey, l.district, l.contactAddress,
            l.countryCode, l.phoneNumber, l.website, l.slug, l.payload_location_ref, l.created_at, l.updated_at
     FROM locations l
     LEFT JOIN location_taxonomy t ON l.locationKey = t.locationKey
@@ -256,7 +262,7 @@ export function getLocationByIdForUpdate(id: number): Location | null {
  */
 export function getLocationBySlug(slug: string): Location | null {
   const db = getDb();
-    const query = db.query("SELECT id, name, title, address, url, lat, lng, category, locationKey, district, contactAddress, countryCode, phoneNumber, website, slug, payload_location_ref, created_at, updated_at FROM locations WHERE slug = $slug");
+    const query = db.query("SELECT id, name, title, address, url, lat, lng, category, type, locationKey, district, contactAddress, countryCode, phoneNumber, website, slug, payload_location_ref, created_at, updated_at FROM locations WHERE slug = $slug");
   const row = query.get({ $slug: slug }) as Location | undefined;
   return row || null;
 }

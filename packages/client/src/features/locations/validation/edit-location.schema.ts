@@ -14,6 +14,7 @@ export const editLocationSchema = z.object({
     .max(200, "Title must be less than 200 characters")
     .optional(),
   category: locationCategorySchema.optional(),
+  type: z.string().optional().or(z.literal("")).transform(val => val === "" ? undefined : val),
   phoneNumber: z
     .string()
     .max(20, "Phone number must be less than 20 characters")

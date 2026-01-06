@@ -4,13 +4,16 @@ import { ValidationError } from "../errors/http-error";
 
 export function validateBody<T>(schema: ZodSchema<T>) {
   return async (c: Context, next: Next) => {
+    let body: unknown = null;
     try {
-      const body = await c.req.json();
+      body = await c.req.json();
       const validated = schema.parse(body);
       c.set("validatedBody", validated);
       await next();
     } catch (error: any) {
       if (error.errors) {
+        console.error("❌ Validation failed with errors:", JSON.stringify(error.errors, null, 2));
+        console.error("📦 Request body was:", JSON.stringify(body, null, 2));
         throw new ValidationError("Validation failed", error.errors);
       }
       throw error;

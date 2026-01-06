@@ -13,6 +13,7 @@ import { addTaxonomyCorrections } from "./migrations/add-taxonomy-corrections";
 import { addPayloadSyncTracking } from "./migrations/add-payload-sync-tracking";
 import { addUploadMetadata } from "./migrations/add-upload-metadata";
 import { migrateToImageSets } from "./migrations/add-image-sets";
+import { addLocationType } from "./migrations/add-location-type";
 import { addUploadAltTexts } from "./migrations/add-upload-alt-texts";
 import { removeUploadRedundantFields } from "./migrations/remove-upload-redundant-fields";
 import { removeUnusedUploadFields } from "./migrations/remove-unused-upload-fields";
@@ -183,6 +184,9 @@ export function initDb() {
 
   // Run migration to add updated_at column to locations table
   addLocationUpdatedAt(database);
+
+  // Run migration to add type column to locations table
+  addLocationType(database);
 }
 
 export function getDb(): Database {

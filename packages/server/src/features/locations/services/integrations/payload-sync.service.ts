@@ -73,6 +73,9 @@ export class PayloadSyncService {
       // Map location data to Payload format (locationRef is guaranteed at this point)
       const payloadData = mapLocationToPayloadFormat(location, uploadedImages, locationRef);
 
+      console.log(`🔄 [SYNC] Location ${locationId} type value:`, location.type);
+      console.log(`🔄 [SYNC] Payload data type:`, payloadData.type);
+
       // Check if this location has a stored Payload document ID
       const existingSyncState = PayloadSyncRepo.getSyncState(locationId, collection);
 

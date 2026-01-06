@@ -11,7 +11,8 @@ export const locationCategorySchema = z.enum([
 export const createMapsSchema = z.object({
   name: z.string().trim().min(1, "Name is required"),
   address: z.string().trim().min(1, "Address is required"),
-  category: locationCategorySchema
+  category: locationCategorySchema,
+  type: z.string().trim().optional().or(z.literal("")).transform(val => val === "" ? undefined : val)
 });
 
 // PATCH /api/maps/:id schema - only updatable fields allowed
@@ -19,6 +20,7 @@ export const patchMapsSchema = z.object({
   // Updatable fields only
   title: z.string().trim().min(1).optional(),
   category: locationCategorySchema.optional(),
+  type: z.string().trim().optional().or(z.literal("")).transform(val => val === "" ? undefined : val),
   locationKey: z.string().trim().optional().nullable(),
   contactAddress: z.string().trim().optional(),
   countryCode: z.string().length(2).optional(),
@@ -44,6 +46,7 @@ export const patchMapsSchema = z.object({
   // Ensure at least one updatable field is provided
   return data.title !== undefined ||
          data.category !== undefined ||
+         data.type !== undefined ||
          data.locationKey !== undefined ||
          data.contactAddress !== undefined ||
          data.countryCode !== undefined ||

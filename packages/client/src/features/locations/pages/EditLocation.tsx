@@ -1,27 +1,31 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Pencil } from "lucide-react";
 import { editLocationSchema, type EditLocationFormData } from "../validation/edit-location.schema";
-import { useLocationById, useUpdateLocation } from "@client/shared/services/api";
+import { useLocationById, useUpdateLocation, useLocationTypes } from "@client/shared/services/api";
 import { FormInput, FormSelect } from "@client/shared/components/forms";
 import { SelectItem } from "@client/components/ui";
 import { SubmitButton } from "@client/shared/components/ui";
+import type { LocationCategory } from "@shared/types/location-category";
 
 export function EditLocation() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const locationId = id ? parseInt(id, 10) : null;
+  const [selectedCategory, setSelectedCategory] = useState<LocationCategory | undefined>(undefined);
 
   const { data: location, isLoading, error: fetchError } = useLocationById(locationId);
   const { mutate, isPending, isSuccess, error: updateError } = useUpdateLocation();
+  const { data: locationTypes = [], isLoading: isLoadingTypes } = useLocationTypes(selectedCategory);
 
   const form = useForm<EditLocationFormData>({
     resolver: zodResolver(editLocationSchema),
     defaultValues: {
       title: "",
       category: undefined,
+      type: undefined,
       phoneNumber: "",
       website: "",
     },
@@ -30,14 +34,16 @@ export function EditLocation() {
   // Pre-populate form when location data is loaded
   useEffect(() => {
     if (location) {
+      setSelectedCategory(location.category);
       form.reset({
         title: location.title || "",
         category: location.category,
+        type: location.type || undefined,
         phoneNumber: location.contact.phoneNumber || "",
         website: location.contact.website || "",
       });
 
-      console.log("📦 Form reset complete. Category value:", form.getValues("category"));
+      console.log("📦 Form reset complete. Category value:", form.getValues("category"), "Type value:", form.getValues("type"));
     }
   }, [location, form]);
 
@@ -51,9 +57,10 @@ export function EditLocation() {
   function handleSubmit(data: EditLocationFormData) {
     if (!locationId) return;
 
-    // Only include fields that have values (since they're all optional)
+    // Only include fields that have been explicitly set (not undefined)
+    // Allow empty strings for fields like type that can be cleared
     const updateData = Object.fromEntries(
-      Object.entries(data).filter(([, value]) => value !== undefined && value !== "")
+      Object.entries(data).filter(([, value]) => value !== undefined)
     );
 
     mutate({ id: locationId, data: updateData });
@@ -106,11 +113,26 @@ export function EditLocation() {
           label="Category"
           control={form.control}
           placeholder="Select a category"
+          disabled={true}
         >
           <SelectItem value="dining">Dining</SelectItem>
           <SelectItem value="accommodations">Accommodations</SelectItem>
           <SelectItem value="attractions">Attractions</SelectItem>
           <SelectItem value="nightlife">Nightlife</SelectItem>
+        </FormSelect>
+
+        <FormSelect
+          name="type"
+          label="Type"
+          control={form.control}
+          placeholder={isLoadingTypes ? "Loading types..." : "Select a type"}
+          disabled={isLoadingTypes}
+        >
+          {locationTypes.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
         </FormSelect>
 
         <FormInput

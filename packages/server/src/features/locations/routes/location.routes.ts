@@ -12,6 +12,7 @@ import { syncLocationIdSchema, syncAllSchema } from "../validation/schemas/paylo
 import {
   // Core
   getLocations, getLocationsBasic, getLocationById, deleteLocationBySlug, deleteLocationById,
+  getDiningTypes, getAccommodationsTypes, getAttractionsTypes, getNightlifeTypes,
   postAddMaps, patchMapsById,
   getLocationHierarchy, getCountries, getCountryNames, getCitiesByCountry, getNeighborhoodsByCity,
 
@@ -79,6 +80,12 @@ app.get("/api/location-hierarchy/countries", getCountries);
 app.get("/api/countries", getCountryNames);
 app.get("/api/location-hierarchy/cities/:country", getCitiesByCountry);
 app.get("/api/location-hierarchy/neighborhoods/:country/:city", getNeighborhoodsByCity);
+
+// Location type routes
+app.get("/api/dining-types", getDiningTypes);
+app.get("/api/accommodations-types", getAccommodationsTypes);
+app.get("/api/attractions-types", getAttractionsTypes);
+app.get("/api/nightlife-types", getNightlifeTypes);
 
 // Admin taxonomy routes
 app.get("/api/admin/taxonomy/pending", getPendingTaxonomy);

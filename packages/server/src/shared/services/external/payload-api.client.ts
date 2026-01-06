@@ -183,7 +183,7 @@ export interface PayloadMediaSetQueryResponse {
 
 export interface PayloadEntryData {
   title: string;
-  type?: string;
+  type?: string | null;
   /**
    * IMPORTANT: Use locationRef only, never include a 'location' field.
    * The Payload sync hook gives location precedence - if it exists (even if null),

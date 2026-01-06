@@ -1,30 +1,44 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { addLocationSchema, confirmLocationSchema, type AddLocationFormData, type ConfirmLocationFormData } from "../validation/add-location.schema";
-import { useCreateLocation, useUpdateLocation } from "@client/shared/services/api";
+import { useCreateLocation, useUpdateLocation, useLocationTypes } from "@client/shared/services/api";
 import { FormInput, FormSelect } from "@client/shared/components/forms";
 import { SelectItem } from "@client/components/ui";
 import { SubmitButton } from "@client/shared/components/ui";
 import { MapPin, Check } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import type { LocationCategory } from "@shared/types/location-category";
 
 type Phase = "add" | "confirm";
 
 export function AddLocation() {
   const [phase, setPhase] = useState<Phase>("add");
   const [createdLocation, setCreatedLocation] = useState<{ id: number; name: string; title: string } | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<LocationCategory | undefined>(undefined);
 
   const { mutate: createLocation, isPending: isCreating, isSuccess: isCreated, error: createError } = useCreateLocation();
   const { mutate: updateLocation, isPending: isUpdating, error: updateError } = useUpdateLocation();
+  const { data: locationTypes = [], isLoading: isLoadingTypes } = useLocationTypes(selectedCategory);
 
   const addForm = useForm<AddLocationFormData>({
     resolver: zodResolver(addLocationSchema),
     defaultValues: {
       name: "",
       address: "",
-      category: "dining",
+      category: undefined,
+      type: undefined,
     },
   });
+
+  // Watch category changes to update selectedCategory and clear type
+  const watchedCategory = addForm.watch("category");
+  useEffect(() => {
+    if (watchedCategory !== selectedCategory) {
+      setSelectedCategory(watchedCategory);
+      // Clear type when category changes
+      addForm.setValue("type", undefined);
+    }
+  }, [watchedCategory, selectedCategory, addForm]);
 
   const confirmForm = useForm<ConfirmLocationFormData>({
     resolver: zodResolver(confirmLocationSchema),
@@ -75,6 +89,7 @@ export function AddLocation() {
   function handleStartOver() {
     setPhase("add");
     setCreatedLocation(null);
+    setSelectedCategory(undefined);
     confirmForm.reset();
     addForm.reset();
   }
@@ -106,23 +121,13 @@ export function AddLocation() {
               description={`Current: "${createdLocation.title}"`}
             />
 
-            <div className="flex gap-2">
-              <SubmitButton
-                isLoading={isUpdating}
-                submitText="Confirm Title"
-                submittingText="Updating..."
-                disabled={!confirmForm.formState.isValid}
-                className="flex-1 h-10 mt-2 text-sm font-normal bg-primary text-primary-foreground hover:bg-primary/90"
-              />
-
-              <button
-                type="button"
-                onClick={handleStartOver}
-                className="px-4 py-2 h-10 mt-2 text-sm font-normal border border-input bg-background hover:bg-accent hover:text-accent-foreground rounded-md"
-              >
-                Add Another
-              </button>
-            </div>
+            <SubmitButton
+              isLoading={isUpdating}
+              submitText="Confirm Title"
+              submittingText="Updating..."
+              disabled={!confirmForm.formState.isValid}
+              className="w-full h-10 mt-2 text-sm font-normal bg-primary text-primary-foreground hover:bg-primary/90"
+            />
 
             {updateError && (
               <div className="rounded-md bg-red-50 border border-red-200 p-3 text-sm text-red-600">
@@ -172,6 +177,22 @@ export function AddLocation() {
             <SelectItem value="attractions">Attractions</SelectItem>
             <SelectItem value="nightlife">Nightlife</SelectItem>
           </FormSelect>
+
+          {selectedCategory && (
+            <FormSelect
+              name="type"
+              label="Type"
+              control={addForm.control}
+              placeholder={isLoadingTypes ? "Loading types..." : "Select a type"}
+              disabled={isLoadingTypes}
+            >
+              {locationTypes.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </FormSelect>
+          )}
 
           <SubmitButton
             isLoading={isCreating}
