@@ -9,6 +9,7 @@ import {
 } from "../geocoding/location-geocoding.helper";
 import {
   getLocationById,
+  getLocationByIdForUpdate,
   saveLocation,
   updateLocationById,
 } from "../../repositories/core";
@@ -63,7 +64,13 @@ export class MapsService {
       }
     }
 
-    saveLocation(entry);
+    const savedId = saveLocation(entry);
+    if (!savedId || typeof savedId !== 'number') {
+      throw new BadRequestError("Failed to save location to database");
+    }
+
+    // Update entry with the saved ID
+    entry.id = savedId;
 
     // Transform to response format
     const locationWithNested = {
@@ -77,7 +84,7 @@ export class MapsService {
 
 
   async updateMapsLocationById(id: number, updates: PatchMapsDto): Promise<LocationResponse> {
-    const currentLocation = getLocationById(id);
+    const currentLocation = getLocationByIdForUpdate(id);
     if (!currentLocation) {
       throw new NotFoundError("Location", id);
     }
@@ -109,7 +116,7 @@ export class MapsService {
       throw new BadRequestError("Failed to update location");
     }
 
-    const updatedLocation = getLocationById(id);
+    const updatedLocation = getLocationByIdForUpdate(id);
     if (!updatedLocation) {
       throw new NotFoundError("Location", id);
     }

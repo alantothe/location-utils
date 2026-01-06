@@ -3,6 +3,7 @@ import { LocationListItem } from "./LocationListItem";
 interface Location {
   id: number;
   name: string;
+  title: string | null;
   category: string;
   location?: string;
 }

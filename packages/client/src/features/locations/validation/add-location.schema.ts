@@ -20,4 +20,13 @@ export const addLocationSchema = z.object({
   category: locationCategorySchema,
 });
 
+export const confirmLocationSchema = z.object({
+  title: z
+    .string()
+    .min(1, "Title is required")
+    .max(200, "Title must be less than 200 characters"),
+});
+
+export type ConfirmLocationFormData = z.infer<typeof confirmLocationSchema>;
+
 export type AddLocationFormData = z.infer<typeof addLocationSchema>;

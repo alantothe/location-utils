@@ -25,6 +25,7 @@ interface LocationListItemProps {
   location: {
     id: number;
     name: string;
+    title: string | null;
     category: string;
     location?: string;
   };
@@ -74,7 +75,7 @@ export function LocationListItem({ location, onClick }: LocationListItemProps) {
       >
         <div className="flex-1 min-w-0">
           <h3 className="font-medium text-foreground text-base leading-tight truncate">
-            {location.name}
+            {location.title || location.name}
           </h3>
           {location.location && (
             <p className="text-sm text-muted-foreground mt-1 leading-relaxed">

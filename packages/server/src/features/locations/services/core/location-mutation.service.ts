@@ -2,6 +2,7 @@ import {
   deleteLocationBySlug as deleteLocationBySlugRepo,
   deleteLocationById as deleteLocationByIdRepo,
   getLocationById,
+  getLocationByIdForUpdate,
   getLocationBySlug
 } from "../../repositories/core";
 import type { ImageStorageService } from "@server/shared/services/storage/image-storage.service";
@@ -37,7 +38,7 @@ export class LocationMutationService {
 
   async deleteLocationById(id: number): Promise<boolean> {
     // 1. Fetch location to get sanitized name for file cleanup
-    const location = getLocationById(id);
+    const location = getLocationByIdForUpdate(id);
     if (!location) {
       return false;
     }

@@ -77,6 +77,7 @@ export interface LocationsResponse {
 export interface LocationBasic {
   id: number;
   name: string;
+  title: string | null;
   location: string | null;
   category: Category;
 }

@@ -232,6 +232,23 @@ export function getLocationById(id: number): Location | null {
 }
 
 /**
+ * Get a location by ID for update operations (ignores taxonomy status)
+ */
+export function getLocationByIdForUpdate(id: number): Location | null {
+  const db = getDb();
+  const query = db.query(`
+    SELECT DISTINCT l.id, l.name, l.title, l.address, l.url, l.lat, l.lng,
+           l.category, l.locationKey, l.district, l.contactAddress,
+           l.countryCode, l.phoneNumber, l.website, l.slug, l.payload_location_ref, l.created_at, l.updated_at
+    FROM locations l
+    LEFT JOIN location_taxonomy t ON l.locationKey = t.locationKey
+    WHERE l.id = $id
+  `);
+  const row = query.get({ $id: id }) as Location | undefined;
+  return row || null;
+}
+
+/**
  * Get a single location by its URL-friendly slug.
  *
  * @param slug - URL slug to search for (e.g., "panchita-miraflores")

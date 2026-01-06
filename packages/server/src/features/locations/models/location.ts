@@ -161,6 +161,7 @@ export interface LocationResponse {
 export interface LocationBasic {
   id: number;
   name: string;
+  title: string | null;
   location: string | null;
   category: LocationCategory;
 }

@@ -208,6 +208,7 @@ export function transformLocationToBasicResponse(location: import('../models/loc
   return {
     id: location.id!,
     name: location.name,
+    title: location.title ?? null,
     location: location.locationKey ? formatLocationForDisplay(location.locationKey) : null,
     category: location.category || 'attractions',
   };
