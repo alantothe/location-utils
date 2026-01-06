@@ -90,13 +90,36 @@ export class PayloadSyncService {
       // Log and save the Payload document ID
       console.log(`📄 Payload document ID: ${response.doc.id} (location ${locationId})`);
 
-      // Save sync state
+      // Generate a single timestamp for both sync state and location update
+      // Use SQLite's datetime format (YYYY-MM-DD HH:MM:SS) without timezone
+      // This matches how SQLite stores DATETIME columns and prevents timezone parsing issues
+      const now = new Date();
+      now.setMilliseconds(0); // Remove milliseconds
+      const syncTimestamp = now.toISOString().replace('T', ' ').replace('.000Z', '');
+      console.log(`🕐 Generated sync timestamp (SQLite format): ${syncTimestamp}`);
+
+      // Update location's updated_at FIRST
+      const updateSuccess = updateLocationById(locationId, { updated_at: syncTimestamp });
+      console.log(`📝 Updated location ${locationId} updated_at: ${updateSuccess ? syncTimestamp : 'FAILED'}`);
+
+      // Save sync state using the SAME timestamp
       PayloadSyncRepo.saveSyncState(
         locationId,
         collection,
         response.doc.id,
-        "success"
+        "success",
+        undefined, // no error message
+        syncTimestamp // use the same timestamp
       );
+      console.log(`💾 Saved sync state for location ${locationId} with timestamp: ${syncTimestamp}`);
+
+      // Verify what was actually saved to the database
+      const verifyLocation = this.locationQuery.getLocationById(locationId);
+      const verifySyncState = PayloadSyncRepo.getSyncState(locationId, collection);
+      console.log(`✅ VERIFICATION for location ${locationId}:`);
+      console.log(`   DB location.updated_at: ${verifyLocation?.updated_at}`);
+      console.log(`   DB syncState.last_synced_at: ${verifySyncState?.last_synced_at}`);
+      console.log(`   Match: ${verifyLocation?.updated_at === verifySyncState?.last_synced_at}`);
 
       return {
         locationId,
@@ -205,17 +228,24 @@ export class PayloadSyncService {
   private hasLocationChangedSinceLastSync(location: any, syncState: any): boolean {
     // If there's no sync state or no successful sync, it doesn't need resync (needs initial sync)
     if (!syncState || syncState.sync_status !== "success") {
+      console.log(`🔍 Location ${location.id}: No sync state or not successful - needsResync=false`);
       return false;
     }
 
     // If location has no updated_at, assume it hasn't changed
     if (!location.updated_at) {
+      console.log(`🔍 Location ${location.id}: No updated_at - needsResync=false`);
       return false;
     }
 
-    // Compare timestamps
+    // Compare timestamps - if location was modified after last successful sync, it needs resync
     const lastModified = new Date(location.updated_at);
     const lastSynced = new Date(syncState.last_synced_at);
+
+    console.log(`🔍 Location ${location.id} timestamp comparison:`);
+    console.log(`   location.updated_at: ${location.updated_at} (Date: ${lastModified.toISOString()})`);
+    console.log(`   syncState.last_synced_at: ${syncState.last_synced_at} (Date: ${lastSynced.toISOString()})`);
+    console.log(`   needsResync: ${lastModified > lastSynced}`);
 
     return lastModified > lastSynced;
   }

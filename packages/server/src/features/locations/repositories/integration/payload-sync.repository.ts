@@ -101,11 +101,12 @@ export function saveSyncState(
   collection: "dining" | "accommodations" | "attractions" | "nightlife",
   payloadDocId: string,
   status: "success" | "failed" | "pending",
-  errorMessage?: string
+  errorMessage?: string,
+  timestamp?: string
 ): boolean {
   try {
     const db = getDb();
-    const timestamp = new Date().toISOString();
+    const syncTimestamp = timestamp || new Date().toISOString();
 
     const query = db.query(`
       INSERT INTO payload_sync_state (location_id, payload_collection, payload_doc_id, last_synced_at, sync_status, error_message)
@@ -121,7 +122,7 @@ export function saveSyncState(
       $locationId: locationId,
       $collection: collection,
       $payloadDocId: payloadDocId,
-      $timestamp: timestamp,
+      $timestamp: syncTimestamp,
       $status: status,
       $errorMessage: errorMessage || null,
     });

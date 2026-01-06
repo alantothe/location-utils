@@ -24,7 +24,7 @@ import {
 import type { Category } from "@client/shared/services/api/types";
 import type { SyncStatusResponse } from "@client/shared/services/api/payload.api";
 
-type SyncStatusFilter = "all" | "synced" | "not-synced" | "failed";
+type SyncStatusFilter = "all" | "synced" | "not-synced" | "needs-resync" | "failed";
 
 export function PayloadSync() {
   const { data: statusData, isLoading, error, refetch: refetchSyncStatus } = useSyncStatus();
@@ -51,9 +51,11 @@ export function PayloadSync() {
 
     // Filter by sync status
     if (statusFilter === "synced") {
-      filtered = filtered.filter(item => item.synced && item.syncState?.sync_status === "success");
+      filtered = filtered.filter(item => item.synced && item.syncState?.sync_status === "success" && !item.needsResync);
     } else if (statusFilter === "not-synced") {
       filtered = filtered.filter(item => !item.synced);
+    } else if (statusFilter === "needs-resync") {
+      filtered = filtered.filter(item => item.needsResync);
     } else if (statusFilter === "failed") {
       filtered = filtered.filter(item => item.syncState?.sync_status === "failed");
     }
@@ -63,14 +65,15 @@ export function PayloadSync() {
 
   // Calculate statistics
   const stats = useMemo(() => {
-    if (!statusData) return { total: 0, synced: 0, failed: 0, notSynced: 0 };
+    if (!statusData) return { total: 0, synced: 0, failed: 0, notSynced: 0, needsResync: 0 };
 
     const total = statusData.length;
-    const synced = statusData.filter(item => item.synced && item.syncState?.sync_status === "success").length;
+    const synced = statusData.filter(item => item.synced && item.syncState?.sync_status === "success" && !item.needsResync).length;
     const failed = statusData.filter(item => item.syncState?.sync_status === "failed").length;
     const notSynced = statusData.filter(item => !item.synced).length;
+    const needsResync = statusData.filter(item => item.needsResync).length;
 
-    return { total, synced, failed, notSynced };
+    return { total, synced, failed, notSynced, needsResync };
   }, [statusData]);
 
   const handleSyncLocation = async (locationId: number) => {
@@ -104,6 +107,10 @@ export function PayloadSync() {
     }
 
     if (item.syncState.sync_status === "success") {
+      // Check if location needs resync (changed after last sync)
+      if (item.needsResync) {
+        return <span className="px-2 py-1 text-xs rounded bg-orange-100 text-orange-700">Needs Resync</span>;
+      }
       return <span className="px-2 py-1 text-xs rounded bg-green-100 text-green-700">Synced</span>;
     }
 
@@ -198,7 +205,7 @@ export function PayloadSync() {
         </div>
 
         {/* Statistics */}
-        <div className="grid grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-5 gap-4 mb-6">
           <div className="bg-muted p-4 rounded">
             <div className="text-2xl font-bold text-foreground">{stats.total}</div>
             <div className="text-sm text-muted-foreground">Total Locations</div>
@@ -206,6 +213,10 @@ export function PayloadSync() {
           <div className="bg-green-50 p-4 rounded">
             <div className="text-2xl font-bold text-green-700">{stats.synced}</div>
             <div className="text-sm text-green-600">Synced</div>
+          </div>
+          <div className="bg-orange-50 p-4 rounded">
+            <div className="text-2xl font-bold text-orange-700">{stats.needsResync}</div>
+            <div className="text-sm text-orange-600">Needs Resync</div>
           </div>
           <div className="bg-red-50 p-4 rounded">
             <div className="text-2xl font-bold text-red-700">{stats.failed}</div>
@@ -244,6 +255,7 @@ export function PayloadSync() {
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="synced">Synced</SelectItem>
+                <SelectItem value="needs-resync">Needs Resync</SelectItem>
                 <SelectItem value="not-synced">Not Synced</SelectItem>
                 <SelectItem value="failed">Failed</SelectItem>
               </SelectContent>

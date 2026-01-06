@@ -138,6 +138,14 @@ export function updateLocationById(id: number, updates: Partial<Location>): bool
       setClause.push("payload_location_ref = $payload_location_ref");
       params.$payload_location_ref = updates.payload_location_ref;
     }
+    if (updates.updated_at !== undefined) {
+      setClause.push("updated_at = $updated_at");
+      params.$updated_at = updates.updated_at;
+    } else {
+      // Automatically set updated_at to current timestamp for all updates
+      // UNLESS explicitly provided (needed for sync to set matching timestamp)
+      setClause.push("updated_at = CURRENT_TIMESTAMP");
+    }
 
     if (setClause.length === 0) {
       return false;
