@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FormInput } from "@client/shared/components/forms";
@@ -6,6 +6,7 @@ import { Button } from "@client/components/ui/button";
 import { useToast } from "@client/shared/hooks/useToast";
 import { useAddUploadImageSet } from "@client/shared/services/api/hooks/useAddUploadImageSet";
 import { useGenerateAltText } from "@client/shared/services/api/hooks/useGenerateAltText";
+import { useLocationById } from "@client/shared/services/api/hooks/useLocationById";
 import { ImagePreviewGrid } from "../ui/ImagePreviewGrid";
 import { MultiVariantCropperModal } from "../modals/MultiVariantCropperModal";
 import { AltTextReviewModal } from "../modals/AltTextReviewModal";
@@ -43,12 +44,22 @@ export function AddUploadFilesForm({ locationId }: AddUploadFilesFormProps) {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Fetch location data to get the title for default photographer credit
+  const { data: location } = useLocationById(locationId);
+
   const form = useForm<AddUploadFilesFormData>({
     resolver: zodResolver(addUploadFilesSchema),
     defaultValues: {
       photographerCredit: "",
     },
   });
+
+  // Update photographer credit default when location data loads
+  useEffect(() => {
+    if (location?.title && !form.getValues("photographerCredit")) {
+      form.setValue("photographerCredit", location.title);
+    }
+  }, [location?.title, form]);
 
   const { mutate: generateAltText, isPending: isGeneratingAltText } = useGenerateAltText({
     onSuccess: (data) => {
@@ -103,6 +114,11 @@ export function AddUploadFilesForm({ locationId }: AddUploadFilesFormProps) {
     if (fileArray.length > 0) {
       generateAltText(fileArray[0]);
     }
+
+    // Reset the file input value so the same files can be selected again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   }
 
   function handleRemoveFile(index: number) {
@@ -126,6 +142,10 @@ export function AddUploadFilesForm({ locationId }: AddUploadFilesFormProps) {
     setCropModalState({ isOpen: false, fileIndex: null });
     setAltTextModalState({ isOpen: false, fileIndex: null, aiGeneratedText: "" });
     form.reset();
+    // Reset photographer credit to location title after form reset
+    if (location?.title) {
+      form.setValue("photographerCredit", location.title);
+    }
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -286,7 +306,7 @@ export function AddUploadFilesForm({ locationId }: AddUploadFilesFormProps) {
         <FormInput
           control={form.control}
           name="photographerCredit"
-          label="Photographer Credit (optional)"
+          label="Photographer Credit *"
           placeholder="Name, studio, or publication"
         />
 

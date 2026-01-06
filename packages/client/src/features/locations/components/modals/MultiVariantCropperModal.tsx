@@ -83,7 +83,7 @@ export function MultiVariantCropperModal({
   const onCropComplete = useCallback((_croppedArea: Area, croppedAreaPixels: Area) => {
     setCropStates(prev => ({
       ...prev,
-      [currentVariantType]: { ...prev[currentVariantType], croppedAreaPixels }
+      [currentVariantType]: { ...prev[currentVariantType], croppedAreaPixels, completed: true }
     }));
   }, [currentVariantType]);
 
