@@ -26,6 +26,16 @@ export const confirmLocationSchema = z.object({
     .string()
     .min(1, "Title is required")
     .max(200, "Title must be less than 200 characters"),
+  phoneNumber: z
+    .string()
+    .optional()
+    .or(z.literal(""))
+    .transform(val => val === "" ? undefined : val),
+  website: z
+    .string()
+    .optional()
+    .or(z.literal(""))
+    .transform(val => val === "" ? undefined : val),
 });
 
 export type ConfirmLocationFormData = z.infer<typeof confirmLocationSchema>;

@@ -13,7 +13,7 @@ type Phase = "add" | "confirm";
 
 export function AddLocation() {
   const [phase, setPhase] = useState<Phase>("add");
-  const [createdLocation, setCreatedLocation] = useState<{ id: number; name: string; title: string } | null>(null);
+  const [createdLocation, setCreatedLocation] = useState<{ id: number; name: string; title: string; phoneNumber?: string; website?: string } | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<LocationCategory | undefined>(undefined);
 
   const { mutate: createLocation, isPending: isCreating, isSuccess: isCreated, error: createError } = useCreateLocation();
@@ -44,6 +44,8 @@ export function AddLocation() {
     resolver: zodResolver(confirmLocationSchema),
     defaultValues: {
       title: "",
+      phoneNumber: "",
+      website: "",
     },
   });
 
@@ -54,8 +56,12 @@ export function AddLocation() {
           id: response.id,
           name: response.source.name,
           title: response.title || response.source.name,
+          phoneNumber: response.contact?.phoneNumber || undefined,
+          website: response.contact?.website || undefined,
         });
         confirmForm.setValue("title", response.title || response.source.name);
+        confirmForm.setValue("phoneNumber", response.contact?.phoneNumber || "");
+        confirmForm.setValue("website", response.contact?.website || "");
         setPhase("confirm");
         addForm.reset();
       },
@@ -70,7 +76,11 @@ export function AddLocation() {
 
     updateLocation({
       id: createdLocation.id,
-      data: { title: data.title }
+      data: {
+        title: data.title,
+        phoneNumber: data.phoneNumber,
+        website: data.website
+      }
     }, {
       onSuccess: () => {
         // Reset everything and go back to add phase
@@ -103,7 +113,7 @@ export function AddLocation() {
             <div className="w-8 h-8 rounded-lg bg-green-500 flex items-center justify-center">
               <Check className="w-4 h-4 text-white" />
             </div>
-            <h1 className="text-[24px]! opacity-70 font-medium text-foreground">Confirm Location Title</h1>
+            <h1 className="text-[24px]! opacity-70 font-medium text-foreground">Confirm Location Details</h1>
           </div>
 
           <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
@@ -121,9 +131,25 @@ export function AddLocation() {
               description={`Current: "${createdLocation.title}"`}
             />
 
+            <FormInput
+              name="phoneNumber"
+              label="Phone Number"
+              control={confirmForm.control}
+              placeholder="Phone number (optional)"
+              description={`Current: ${createdLocation.phoneNumber || "None"}`}
+            />
+
+            <FormInput
+              name="website"
+              label="Website"
+              control={confirmForm.control}
+              placeholder="https://example.com (optional)"
+              description={`Current: ${createdLocation.website || "None"}`}
+            />
+
             <SubmitButton
               isLoading={isUpdating}
-              submitText="Confirm Title"
+              submitText="Confirm Details"
               submittingText="Updating..."
               disabled={!confirmForm.formState.isValid}
               className="w-full h-10 mt-2 text-sm font-normal bg-primary text-primary-foreground hover:bg-primary/90"
