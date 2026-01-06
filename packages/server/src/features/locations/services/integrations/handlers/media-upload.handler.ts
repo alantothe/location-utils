@@ -32,84 +32,112 @@ export async function uploadLocationImages(
         }
 
         try {
-          // ⭐ STEP 1: Create or find media-set first (idempotent)
+          // ⭐ STEP 1: Check if media-set already exists (from previous sync)
           const mediaSetTitle = `${location.title || location.source.name} - Upload ${imageSet.id}`;
           const externalRef = `location-${location.id}-imageset-${imageSet.id}`;
           const altText = imageSet.altText || `${location.title || location.source.name}`;
 
-          console.log(`📦 [MEDIA-SET] Creating media-set for location ${location.id}`, {
+          console.log(`📦 [MEDIA-SET] Checking media-set for location ${location.id}`, {
             title: mediaSetTitle,
             externalRef,
             locationKey: location.locationKey,
           });
 
-          const mediaSetId = await payloadClient.findOrCreateMediaSet({
-            title: mediaSetTitle,
-            alt_text: altText,
-            externalRef: externalRef,
-            location: location.locationKey || undefined,
-            tags: [], // Add tags mapping if needed
-          });
+          // Check if media-set already exists
+          const existingMediaSetId = await payloadClient.findMediaSetByExternalRef(externalRef);
+
+          let mediaSetId: string;
+          let shouldUploadVariants = false;
+
+          if (existingMediaSetId) {
+            // Media-set already exists from previous sync
+            console.log(`✅ [MEDIA-SET] Found existing media-set: ${existingMediaSetId} (skipping variant uploads)`);
+            mediaSetId = existingMediaSetId;
+            shouldUploadVariants = false; // Don't re-upload variants
+          } else {
+            // Media-set doesn't exist, create it
+            console.log(`📦 [MEDIA-SET] Creating new media-set`);
+            mediaSetId = await payloadClient.createMediaSet({
+              title: mediaSetTitle,
+              alt_text: altText,
+              externalRef: externalRef,
+              location: location.locationKey || undefined,
+              tags: [], // Add tags mapping if needed
+            });
+            shouldUploadVariants = true; // Upload variants for new media-set
+          }
 
           console.log(`✅ [MEDIA-SET] Media-set ready: ${mediaSetId}`);
 
-          // ⭐ STEP 2: Upload each variant with mediaSet reference
-          // Define standard variant order for consistent upload sequence
-          const variantOrder: ImageVariantType[] = ['thumbnail', 'square', 'wide', 'portrait', 'hero'];
+          // ⭐ STEP 2: Upload variants ONLY if this is a new media-set
           let uploadedVariantsCount = 0;
 
-          for (const variantType of variantOrder) {
-            const variant = imageSet.variants.find(v => v.type === variantType);
+          if (shouldUploadVariants) {
+            // Define standard variant order for consistent upload sequence
+            const variantOrder: ImageVariantType[] = ['thumbnail', 'square', 'wide', 'portrait', 'hero'];
 
-            if (!variant) {
-              console.warn(`⚠️  ImageSet ${imageSet.id} missing variant: ${variantType}`);
-              continue; // Skip missing variant, proceed with others
-            }
+            for (const variantType of variantOrder) {
+              const variant = imageSet.variants.find(v => v.type === variantType);
 
-            try {
-              const imageBuffer = await imageStorage.readImage(variant.path);
-
-              // Generate filename: {sanitized-source-name}_{variantType}.{extension}
-              const sanitizedName = sanitizeLocationName(location.source.name);
-              const extension = getFileExtension(variant.path);
-              const filename = `${sanitizedName}_${variantType}.${extension}`;
-
-              console.log(`🖼️  [VARIANT] Uploading ${variantType} for media-set ${mediaSetId}`);
-
-              // Warn if locationRef is missing (helps catch issues early)
-              if (!location.payload_location_ref) {
-                console.warn(
-                  `⚠️  Location ${location.id} (${location.source.name}) has no payload_location_ref. ` +
-                  `Media assets will be uploaded without location hierarchy link.`
-                );
+              if (!variant) {
+                console.warn(`⚠️  ImageSet ${imageSet.id} missing variant: ${variantType}`);
+                continue; // Skip missing variant, proceed with others
               }
 
-              const mediaAssetId = await payloadClient.uploadImage(
-                imageBuffer,
-                filename,
-                altText,
-                {
-                  locationRef: location.payload_location_ref || undefined,
-                  photographerCredit: imageSet.photographerCredit,
-                  mediaSet: mediaSetId,        // ⭐ NEW: Link to media-set
-                  variant: variantType,         // ⭐ NEW: Specify variant type
-                }
-              );
+              try {
+                const imageBuffer = await imageStorage.readImage(variant.path);
 
-              console.log(`✅ [VARIANT] Uploaded ${variantType} → MediaAsset: ${mediaAssetId}`);
-              uploadedVariantsCount++;
-            } catch (error) {
-              console.warn(`⚠️  Failed to upload variant ${variantType} for ImageSet ${imageSet.id}:`, error);
-              // Continue with remaining variants (graceful degradation)
+                // Generate filename: {sanitized-source-name}_{variantType}.{extension}
+                const sanitizedName = sanitizeLocationName(location.source.name);
+                const extension = getFileExtension(variant.path);
+                const filename = `${sanitizedName}_${variantType}.${extension}`;
+
+                console.log(`🖼️  [VARIANT] Uploading ${variantType} for media-set ${mediaSetId}`);
+
+                // Warn if locationRef is missing (helps catch issues early)
+                if (!location.payload_location_ref) {
+                  console.warn(
+                    `⚠️  Location ${location.id} (${location.source.name}) has no payload_location_ref. ` +
+                    `Media assets will be uploaded without location hierarchy link.`
+                  );
+                }
+
+                const mediaAssetId = await payloadClient.uploadImage(
+                  imageBuffer,
+                  filename,
+                  altText,
+                  {
+                    locationRef: location.payload_location_ref || undefined,
+                    photographerCredit: imageSet.photographerCredit,
+                    mediaSet: mediaSetId,        // ⭐ NEW: Link to media-set
+                    variant: variantType,         // ⭐ NEW: Specify variant type
+                  }
+                );
+
+                console.log(`✅ [VARIANT] Uploaded ${variantType} → MediaAsset: ${mediaAssetId}`);
+                uploadedVariantsCount++;
+              } catch (error) {
+                console.warn(`⚠️  Failed to upload variant ${variantType} for ImageSet ${imageSet.id}:`, error);
+                // Continue with remaining variants (graceful degradation)
+              }
             }
+          } else {
+            // Media-set already exists, variants already uploaded in previous sync
+            console.log(`⏭️  [MEDIA-SET] Skipping variant uploads (already synced previously)`);
           }
 
-          // ⭐ STEP 3: Add media-set ID to gallery (not individual assets)
-          if (uploadedVariantsCount > 0) {
-            galleryImageIds.push(mediaSetId);
-            console.log(`✅ [MEDIA-SET] Added media-set ${mediaSetId} to gallery (${uploadedVariantsCount}/5 variants uploaded)`);
+          // ⭐ STEP 3: Add media-set ID to gallery
+          if (shouldUploadVariants && uploadedVariantsCount === 0) {
+            // New media-set but no variants uploaded (error case)
+            console.warn(`⚠️  No variants were uploaded for new ImageSet ${imageSet.id}, skipping media-set`);
           } else {
-            console.warn(`⚠️  No variants were uploaded for ImageSet ${imageSet.id}, skipping media-set`);
+            // Add to gallery: either new media-set with variants, or existing media-set (re-sync)
+            galleryImageIds.push(mediaSetId);
+            if (shouldUploadVariants) {
+              console.log(`✅ [MEDIA-SET] Added new media-set ${mediaSetId} to gallery (${uploadedVariantsCount}/5 variants uploaded)`);
+            } else {
+              console.log(`✅ [MEDIA-SET] Added existing media-set ${mediaSetId} to gallery (already synced)`);
+            }
           }
         } catch (error) {
           console.error(`❌ [MEDIA-SET] Failed to process ImageSet ${imageSet.id}:`, error);

@@ -4,6 +4,7 @@ import type { PayloadApiClient } from "@server/shared/services/external/payload-
 import { ImageStorageService } from "@server/shared/services/storage/image-storage.service";
 import { LocationQueryService } from "../core/location-query.service";
 import * as PayloadSyncRepo from "../../repositories/integration";
+import { updateLocationById } from "../../repositories/core";
 
 // Import sub-modules
 import type { SyncResult, SyncStatusResponse } from "./types";
@@ -37,18 +38,34 @@ export class PayloadSyncService {
         throw new NotFoundError("Location", locationId);
       }
 
-      // Use stored locationRef (already resolved during creation)
-      const locationRef = location.payload_location_ref;
+      // Use stored locationRef (or auto-resolve if missing)
+      let locationRef = location.payload_location_ref;
 
+      // If missing, auto-resolve (graceful handling for legacy locations)
       if (!locationRef) {
-        throw new BadRequestError(
-          `Cannot sync location ${locationId}: locationRef is required by Payload CMS. ` +
-          `Location must be created with a valid locationKey. ` +
-          `Current locationKey: ${location.locationKey || "none"}`
-        );
-      }
+        console.warn(`⚠️  Location ${locationId} missing payload_location_ref, auto-resolving...`);
 
-      console.log(`✓ Using stored locationRef for location ${locationId}: ${locationRef}`);
+        // Dynamic import to avoid circular dependencies
+        const { resolvePayloadLocationRef } = await import('./resolvers');
+        locationRef = await resolvePayloadLocationRef(location, this.payloadClient);
+
+        if (!locationRef) {
+          throw new BadRequestError(
+            `Failed to resolve Payload location for locationKey: ${location.locationKey || "none"}. ` +
+            `Ensure the location hierarchy exists in Payload CMS.`
+          );
+        }
+
+        // Update local database with resolved ref
+        const updated = updateLocationById(locationId, { payload_location_ref: locationRef });
+        if (!updated) {
+          console.warn(`⚠️  Failed to save payload_location_ref to database for location ${locationId}`);
+        } else {
+          console.log(`✅ Auto-resolved and saved locationRef: ${locationRef}`);
+        }
+      } else {
+        console.log(`✓ Using stored locationRef for location ${locationId}: ${locationRef}`);
+      }
 
       // Upload images and create Instagram posts
       const uploadedImages = await uploadLocationImages(location, this.payloadClient, this.imageStorage);

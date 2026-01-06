@@ -47,6 +47,14 @@ export interface PayloadEntryResponse {
       caption?: string;
       id: string;
     }>;
+    instagramGallery?: Array<{
+      post: {
+        id: string;
+        title: string;
+        embedCode: string;
+      };
+      id: string;
+    }>;
     status: "draft" | "published";
     createdAt: string;
     updatedAt: string;
@@ -264,6 +272,25 @@ export class PayloadApiClient {
     return this.authToken!;
   }
 
+  private normalizeDocResponse<T extends { id?: string | number }>(
+    result: unknown,
+    context: string
+  ): { message?: string; doc: T } {
+    if (result && typeof result === "object") {
+      const obj = result as { doc?: T; message?: string; id?: string | number };
+      if (obj.doc && typeof obj.doc === "object") {
+        return { message: obj.message, doc: obj.doc };
+      }
+
+      if (obj.id !== undefined) {
+        return { message: "", doc: result as T };
+      }
+    }
+
+    console.error(`[Payload] Unexpected ${context} response format`, result);
+    throw new Error(`Unexpected Payload response format for ${context}`);
+  }
+
   /**
    * Upload an image to Payload (multipart/form-data)
    * Returns the MediaAsset ID to be used in gallery references
@@ -355,7 +382,11 @@ export class PayloadApiClient {
       throw new Error(`Payload image upload failed: ${response.status} - ${errorText}`);
     }
 
-    const data = await response.json() as PayloadMediaAssetResponse;
+    const rawResult = await response.json();
+    const data = this.normalizeDocResponse<PayloadMediaAssetResponse["doc"]>(
+      rawResult,
+      "media asset upload"
+    );
 
     console.log(`✓ Uploaded image to Payload: ${data.doc.filename} → ID: ${data.doc.id}`);
     console.log('🔍 [PAYLOAD RESPONSE] Full doc object:', JSON.stringify(data.doc, null, 2));
@@ -476,6 +507,74 @@ export class PayloadApiClient {
   }
 
   /**
+   * Get a full entry from a Payload collection by ID
+   * Used to fetch existing data before updating (for merging galleries)
+   */
+  async getEntryById(
+    collection: "dining" | "accommodations" | "attractions" | "nightlife",
+    docId: string
+  ): Promise<PayloadEntryResponse | null> {
+    if (!this.isConfigured()) {
+      throw new ServiceUnavailableError("Payload CMS");
+    }
+
+    const token = await this.ensureAuthenticated();
+
+    console.log(`[Payload] Fetch entry by ID`, {
+      collection,
+      docId,
+      url: `${this.apiUrl}/api/${collection}/${docId}`,
+    });
+
+    const response = await fetch(`${this.apiUrl}/api/${collection}/${docId}`, {
+      method: "GET",
+      headers: {
+        "Authorization": `JWT ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        console.warn(`[Payload] Entry not found: ${collection}/${docId}`);
+        return null;
+      }
+
+      const errorText = await response.text();
+      console.error("[Payload] Entry fetch failed", {
+        collection,
+        docId,
+        status: response.status,
+        errorText,
+      });
+      throw new Error(`Payload entry fetch failed: ${response.status} - ${errorText}`);
+    }
+
+    const result = await response.json();
+
+    // Debug: Log the raw response structure
+    console.log("[Payload] Raw GET response:", JSON.stringify(result).substring(0, 500));
+
+    const normalized = this.normalizeDocResponse<PayloadEntryResponse["doc"]>(
+      result,
+      `GET ${collection}/${docId}`
+    );
+    const normalizedResult: PayloadEntryResponse = {
+      message: normalized.message ?? "",
+      doc: normalized.doc,
+    };
+
+    console.log("[Payload] Entry fetched", {
+      collection,
+      docId,
+      title: normalizedResult.doc.title,
+      galleryCount: normalizedResult.doc.gallery?.length || 0,
+      instagramGalleryCount: normalizedResult.doc.instagramGallery?.length || 0,
+    });
+
+    return normalizedResult;
+  }
+
+  /**
    * Create a location entry in Payload
    */
   async createLocation(data: PayloadLocationCreateData): Promise<string> {
@@ -505,7 +604,11 @@ export class PayloadApiClient {
       throw new Error(`Payload location creation failed: ${response.status} - ${errorText}`);
     }
 
-    const result = await response.json() as PayloadLocationCreateResponse;
+    const rawResult = await response.json();
+    const result = this.normalizeDocResponse<PayloadLocationCreateResponse["doc"]>(
+      rawResult,
+      "location create"
+    );
 
     console.log("[Payload] Location created", {
       id: result.doc.id,
@@ -558,7 +661,15 @@ export class PayloadApiClient {
       throw new Error(`Payload entry creation failed: ${response.status} - ${errorText}`);
     }
 
-    const result = await response.json() as PayloadEntryResponse;
+    const rawResult = await response.json();
+    const normalized = this.normalizeDocResponse<PayloadEntryResponse["doc"]>(
+      rawResult,
+      `${collection} entry create`
+    );
+    const result: PayloadEntryResponse = {
+      message: normalized.message ?? "",
+      doc: normalized.doc,
+    };
 
     console.log(`✓ Created ${collection} entry in Payload: ${result.doc.title} → ID: ${result.doc.id}`);
 
@@ -609,7 +720,15 @@ export class PayloadApiClient {
       throw new Error(`Payload entry update failed: ${response.status} - ${errorText}`);
     }
 
-    const result = await response.json() as PayloadEntryResponse;
+    const rawResult = await response.json();
+    const normalized = this.normalizeDocResponse<PayloadEntryResponse["doc"]>(
+      rawResult,
+      `${collection} entry update`
+    );
+    const result: PayloadEntryResponse = {
+      message: normalized.message ?? "",
+      doc: normalized.doc,
+    };
 
     console.log(`✓ Updated ${collection} entry in Payload: ${result.doc.title} → ID: ${result.doc.id}`);
 
@@ -641,11 +760,44 @@ export class PayloadApiClient {
 
     // Step 2: Update if exists, create if not
     if (existingDocId) {
-      console.log(`[Payload] Entry exists, updating`, {
+      console.log(`[Payload] Entry exists, merging galleries before update`, {
         collection,
         docId: existingDocId,
         title: data.title,
       });
+
+      // ⭐ NEW: Fetch existing entry to merge galleries
+      const existingEntry = await this.getEntryById(collection, existingDocId);
+
+      if (existingEntry) {
+        // Merge existing gallery with new gallery (deduplicate)
+        // Note: Response has nested objects { image: { id, filename, url } }, but data uses just IDs
+        const existingGalleryIds = existingEntry.doc.gallery?.map(item =>
+          typeof item.image === 'string' ? item.image : item.image.id
+        ) || [];
+        const newGalleryIds = data.gallery?.map(item => item.image) || [];
+        const mergedGalleryIds = Array.from(new Set([...existingGalleryIds, ...newGalleryIds]));
+
+        // Merge existing instagramGallery with new instagramGallery (deduplicate)
+        const existingInstagramIds = existingEntry.doc.instagramGallery?.map(item =>
+          typeof item.post === 'string' ? item.post : item.post.id
+        ) || [];
+        const newInstagramIds = data.instagramGallery?.map(item => item.post) || [];
+        const mergedInstagramIds = Array.from(new Set([...existingInstagramIds, ...newInstagramIds]));
+
+        // Update data with merged galleries
+        data.gallery = mergedGalleryIds.map(id => ({ image: id, altText: "", caption: "" }));
+        data.instagramGallery = mergedInstagramIds.map(id => ({ post: id }));
+
+        console.log(`[Payload] Merged galleries`, {
+          existingGalleryCount: existingGalleryIds.length,
+          newGalleryCount: newGalleryIds.length,
+          mergedGalleryCount: mergedGalleryIds.length,
+          existingInstagramCount: existingInstagramIds.length,
+          newInstagramCount: newInstagramIds.length,
+          mergedInstagramCount: mergedInstagramIds.length,
+        });
+      }
 
       return await this.updateEntry(collection, existingDocId, data);
     } else {
@@ -685,7 +837,15 @@ export class PayloadApiClient {
       );
     }
 
-    const result = await response.json() as PayloadInstagramPostResponse;
+    const rawResult = await response.json();
+    const normalized = this.normalizeDocResponse<PayloadInstagramPostResponse["doc"]>(
+      rawResult,
+      "instagram post create"
+    );
+    const result: PayloadInstagramPostResponse = {
+      message: normalized.message ?? "",
+      doc: normalized.doc,
+    };
 
     console.log(`✓ Created Instagram post in Payload: ${result.doc.title} → ID: ${result.doc.id}`);
 
@@ -782,7 +942,15 @@ export class PayloadApiClient {
       throw new Error(`Payload media-set creation failed: ${response.status} - ${errorText}`);
     }
 
-    const result = await response.json() as PayloadMediaSetResponse;
+    const rawResult = await response.json();
+    const normalized = this.normalizeDocResponse<PayloadMediaSetResponse["doc"]>(
+      rawResult,
+      "media-set create"
+    );
+    const result: PayloadMediaSetResponse = {
+      message: normalized.message ?? "",
+      doc: normalized.doc,
+    };
 
     console.log(`✓ Created media-set in Payload: ${result.doc.title} → ID: ${result.doc.id} (status: ${result.doc.status})`);
 
