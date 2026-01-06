@@ -31,10 +31,33 @@ export async function uploadLocationImages(
           continue;
         }
 
+        try {
+          // ⭐ STEP 1: Create or find media-set first (idempotent)
+          const mediaSetTitle = `${location.title || location.source.name} - Upload ${imageSet.id}`;
+          const externalRef = `location-${location.id}-imageset-${imageSet.id}`;
+          const altText = imageSet.altText || `${location.title || location.source.name}`;
+
+          console.log(`📦 [MEDIA-SET] Creating media-set for location ${location.id}`, {
+            title: mediaSetTitle,
+            externalRef,
+            locationKey: location.locationKey,
+          });
+
+          const mediaSetId = await payloadClient.findOrCreateMediaSet({
+            title: mediaSetTitle,
+            alt_text: altText,
+            externalRef: externalRef,
+            location: location.locationKey || undefined,
+            tags: [], // Add tags mapping if needed
+          });
+
+          console.log(`✅ [MEDIA-SET] Media-set ready: ${mediaSetId}`);
+
+          // ⭐ STEP 2: Upload each variant with mediaSet reference
           // Define standard variant order for consistent upload sequence
           const variantOrder: ImageVariantType[] = ['thumbnail', 'square', 'wide', 'portrait', 'hero'];
+          let uploadedVariantsCount = 0;
 
-          // Upload each variant in standard order
           for (const variantType of variantOrder) {
             const variant = imageSet.variants.find(v => v.type === variantType);
 
@@ -51,22 +74,7 @@ export async function uploadLocationImages(
               const extension = getFileExtension(variant.path);
               const filename = `${sanitizedName}_${variantType}.${extension}`;
 
-              // Use base alt text for all variants (no variant-specific descriptions)
-              // Photographer credit is sent separately, not merged into altText
-              const altText = imageSet.altText || `${location.title || location.source.name}`;
-
-              console.log('🔍 [DEBUG] altText:', altText);
-              console.log('🔍 [DEBUG] photographerCredit:', imageSet.photographerCredit);
-
-              // Debug: Log what we're about to send
-              console.log('🔍 [UPLOAD DEBUG] Location data:', {
-                locationId: location.id,
-                locationName: location.source.name,
-                payload_location_ref: location.payload_location_ref,
-                payload_location_ref_type: typeof location.payload_location_ref,
-                payload_location_ref_stringified: JSON.stringify(location.payload_location_ref),
-                will_send_locationRef: location.payload_location_ref || undefined,
-              });
+              console.log(`🖼️  [VARIANT] Uploading ${variantType} for media-set ${mediaSetId}`);
 
               // Warn if locationRef is missing (helps catch issues early)
               if (!location.payload_location_ref) {
@@ -82,16 +90,31 @@ export async function uploadLocationImages(
                 altText,
                 {
                   locationRef: location.payload_location_ref || undefined,
-                  photographerCredit: imageSet.photographerCredit
+                  photographerCredit: imageSet.photographerCredit,
+                  mediaSet: mediaSetId,        // ⭐ NEW: Link to media-set
+                  variant: variantType,         // ⭐ NEW: Specify variant type
                 }
               );
 
-              galleryImageIds.push(mediaAssetId);
+              console.log(`✅ [VARIANT] Uploaded ${variantType} → MediaAsset: ${mediaAssetId}`);
+              uploadedVariantsCount++;
             } catch (error) {
               console.warn(`⚠️  Failed to upload variant ${variantType} for ImageSet ${imageSet.id}:`, error);
               // Continue with remaining variants (graceful degradation)
             }
           }
+
+          // ⭐ STEP 3: Add media-set ID to gallery (not individual assets)
+          if (uploadedVariantsCount > 0) {
+            galleryImageIds.push(mediaSetId);
+            console.log(`✅ [MEDIA-SET] Added media-set ${mediaSetId} to gallery (${uploadedVariantsCount}/5 variants uploaded)`);
+          } else {
+            console.warn(`⚠️  No variants were uploaded for ImageSet ${imageSet.id}, skipping media-set`);
+          }
+        } catch (error) {
+          console.error(`❌ [MEDIA-SET] Failed to process ImageSet ${imageSet.id}:`, error);
+          // Continue with next upload
+        }
       }
     }
 

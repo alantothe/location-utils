@@ -1,5 +1,6 @@
 import { EnvConfig } from "../../config/env.config";
 import { ServiceUnavailableError } from "../../core/errors/http-error";
+import type { ImageVariantType } from "@url-util/shared";
 
 export interface PayloadAuthResponse {
   message: string;
@@ -126,6 +127,52 @@ export interface PayloadInstagramGalleryItem {
   post: string; // Instagram post ID
 }
 
+export interface PayloadMediaSetData {
+  title: string;
+  alt_text: string;
+  externalRef?: string;        // Optional: For idempotent lookups
+  location?: string;            // locationKey (e.g., "peru|lima|miraflores")
+  tags?: string[];              // Optional: Tag IDs
+}
+
+export interface PayloadMediaSetVariant {
+  id: string;
+  width: number;
+  height: number;
+}
+
+export interface PayloadMediaSetResponse {
+  message?: string;
+  doc: {
+    id: string;
+    title: string;
+    alt_text: string;
+    status: "partial" | "complete";
+    variants: {
+      thumbnail: PayloadMediaSetVariant | null;
+      square: PayloadMediaSetVariant | null;
+      wide: PayloadMediaSetVariant | null;
+      portrait: PayloadMediaSetVariant | null;
+      hero: PayloadMediaSetVariant | null;
+    };
+    externalRef?: string;
+    location?: string;
+    tags?: string[];
+    createdAt?: string;
+    updatedAt?: string;
+  };
+}
+
+export interface PayloadMediaSetQueryResponse {
+  docs: Array<{
+    id: string;
+    title: string;
+    status: string;
+    externalRef?: string;
+  }>;
+  totalDocs?: number;
+}
+
 export interface PayloadEntryData {
   title: string;
   type?: string;
@@ -228,6 +275,8 @@ export class PayloadApiClient {
     options?: {
       locationRef?: string;
       photographerCredit?: string | null;
+      mediaSet?: string;              // Media-set ID to link this variant to
+      variant?: ImageVariantType;     // Variant type (thumbnail, square, wide, portrait, hero)
     }
   ): Promise<string> {
     if (!this.isConfigured()) {
@@ -238,7 +287,7 @@ export class PayloadApiClient {
 
     // Create FormData for multipart upload
     const formData = new FormData();
-    const blob = new Blob([fileBuffer], { type: this.getMimeType(filename) });
+    const blob = new Blob([fileBuffer.buffer], { type: this.getMimeType(filename) });
     formData.append("file", blob, filename);
 
     // Build _payload object with metadata (match working curl format exactly)
@@ -266,6 +315,18 @@ export class PayloadApiClient {
       console.log('✅ [PAYLOAD CLIENT] Added locationRef to payload:', payload.locationRef);
     } else {
       console.warn('⚠️  [PAYLOAD CLIENT] No locationRef provided, skipping');
+    }
+
+    // Add mediaSet if provided (for variant uploads)
+    if (options?.mediaSet) {
+      payload.mediaSet = options.mediaSet;
+      console.log('✅ [PAYLOAD CLIENT] Added mediaSet to payload:', payload.mediaSet);
+    }
+
+    // Add variant if provided (for variant uploads)
+    if (options?.variant) {
+      payload.variant = options.variant;
+      console.log('✅ [PAYLOAD CLIENT] Added variant to payload:', payload.variant);
     }
 
     // Always append _payload
@@ -629,6 +690,125 @@ export class PayloadApiClient {
     console.log(`✓ Created Instagram post in Payload: ${result.doc.title} → ID: ${result.doc.id}`);
 
     return result.doc.id;
+  }
+
+  /**
+   * Find a media-set in Payload by externalRef
+   * Returns the media-set ID if found, null otherwise
+   */
+  async findMediaSetByExternalRef(externalRef: string): Promise<string | null> {
+    if (!this.isConfigured()) {
+      throw new ServiceUnavailableError("Payload CMS");
+    }
+
+    if (!externalRef) {
+      return null;
+    }
+
+    const token = await this.ensureAuthenticated();
+    const params = new URLSearchParams({
+      "where[externalRef][equals]": externalRef,
+      "limit": "1",
+    });
+
+    console.log(`[Payload] Lookup media-set by externalRef`, {
+      externalRef,
+      url: `${this.apiUrl}/api/media-sets?${params.toString()}`,
+    });
+
+    const response = await fetch(`${this.apiUrl}/api/media-sets?${params.toString()}`, {
+      method: "GET",
+      headers: {
+        "Authorization": `JWT ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("[Payload] Media-set lookup failed", {
+        externalRef,
+        status: response.status,
+        errorText,
+      });
+      throw new Error(`Payload media-set lookup failed: ${response.status} - ${errorText}`);
+    }
+
+    const result = await response.json() as PayloadMediaSetQueryResponse;
+    const firstDoc = result.docs?.[0];
+    const totalDocs = result.totalDocs ?? result.docs?.length ?? 0;
+
+    console.log("[Payload] Media-set lookup result", {
+      externalRef,
+      totalDocs,
+      mediaSetId: firstDoc?.id || null,
+      status: firstDoc?.status || null,
+    });
+
+    return firstDoc?.id || null;
+  }
+
+  /**
+   * Create a media-set to group variant images
+   * Returns the media-set ID to be used when uploading variants
+   */
+  async createMediaSet(data: PayloadMediaSetData): Promise<string> {
+    if (!this.isConfigured()) {
+      throw new ServiceUnavailableError("Payload CMS");
+    }
+
+    const token = await this.ensureAuthenticated();
+
+    console.log("[Payload] Create media-set", {
+      title: data.title,
+      externalRef: data.externalRef,
+      location: data.location,
+    });
+
+    const response = await fetch(`${this.apiUrl}/api/media-sets`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `JWT ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("[Payload] Media-set creation failed", {
+        status: response.status,
+        errorText,
+      });
+      throw new Error(`Payload media-set creation failed: ${response.status} - ${errorText}`);
+    }
+
+    const result = await response.json() as PayloadMediaSetResponse;
+
+    console.log(`✓ Created media-set in Payload: ${result.doc.title} → ID: ${result.doc.id} (status: ${result.doc.status})`);
+
+    return result.doc.id;
+  }
+
+  /**
+   * Find or create a media-set (idempotent operation)
+   * Checks if a media-set with the given externalRef exists before creating
+   */
+  async findOrCreateMediaSet(data: PayloadMediaSetData): Promise<string> {
+    if (!data.externalRef) {
+      // No externalRef provided, create directly
+      return await this.createMediaSet(data);
+    }
+
+    // Check if media-set already exists
+    const existingId = await this.findMediaSetByExternalRef(data.externalRef);
+
+    if (existingId) {
+      console.log(`[Payload] Media-set already exists with externalRef: ${data.externalRef} → ID: ${existingId}`);
+      return existingId;
+    }
+
+    // Create new media-set if not found
+    return await this.createMediaSet(data);
   }
 
   /**
